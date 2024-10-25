@@ -1,0 +1,24 @@
+{
+  "name": "natsrun",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:docs": "typedoc --out docs src",
+    "test": "node --import tsx --test '**/*.spec.ts'"
+  },
+  "keywords": ["typescript", "nats", "router", "microservices", "bloomrun", "hemera", "patrun", "seneca"],
+  "author": "Shawn Marincas (@gooseus)",
+  "license": "MIT",
+  "description": "Simple application message router using NATS subject pattern-matching. Based on core Hemera/Seneca pattern-matching libraries.",
+  "devDependencies": {
+    "@types/node": "^22.8.0",
+    "tsx": "^4.19.1",
+    "typedoc": "^0.26.10",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "bloomrun": "^4.1.1"
+  }
+}

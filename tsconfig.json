@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2022",                                  /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
+    "module": "commonjs",                                /* Specify what module code is generated. */
+    "declaration": true,                                 /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
+    "outDir": "./dist",                                  /* Redirect output structure to the directory. */
+    "rootDir": "./src",                                  /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */
+    "strict": true,                                      /* Enable all strict type-checking options. */
+    "esModuleInterop": true,                             /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */
+    "moduleResolution": "node",                          /* Specify how TypeScript looks up a file from a given module specifier. */
+  },
+  "include": ["src"],                                     /* Specify an array of filenames or patterns to include in the program. */
+  "exclude": ["node_modules", "test"]           /* Specify an array of filenames or patterns to exclude from the program. */
+}
