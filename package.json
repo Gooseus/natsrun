@@ -19,6 +19,5 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "bloomrun": "^4.1.1"
   }
 }

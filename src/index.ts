@@ -1,4 +1,4 @@
-import Bloomrun from 'bloomrun';
+import Bloomrun from './lib/bloomrun';
 
 type NatsRoutes = Map<string, Handler[]>;
 type Handler = (msg: any, pattern?: string | RegExp) => Promise<void>;
@@ -19,7 +19,7 @@ const NatsRouteRegExp: Record<string, RegExp> = {
 export class NatsRun {
   map: NatsRoutes;
 
-  store = Bloomrun();
+  store = new Bloomrun();
 
   constructor() {
     this.map = new Map();
@@ -67,7 +67,6 @@ export class NatsRun {
   }
 
   list(subject?: string, opts = {}): Array<Handler[]> {
-    console.log(opts);
     return this.store.list(subject?.split('.'), opts);
   }
   
@@ -83,7 +82,6 @@ export class NatsRun {
    */
   async handle(subject: string, message: any): Promise<void> {
     const matches = this.iterate(subject);
-    console.log('matches', subject, this.list(subject, { patterns: true }));
 
     for (const { pattern, payload } of matches) {
       let idx = 0;

@@ -1,12 +1,13 @@
 # NATSrun
 
+> [!CAUTION]
+> This is a WIP and not yet published to NPM
+
 ## Intro
 
 Simple application message router using NATS subject pattern-matching.
 
 Based on core [Hemera](https://github.com/hemerajs/hemera) and [Seneca](https://github.com/senecajs/seneca) pattern-matching libraries - [bloomrun](https://github.com/mcollina/bloomrun) and [patrun](https://github.com/rjrodger/patrun).
-
-This library is currently dependent on [bloomrun](https://github.com/mcollina/bloomrun), though not for long as the core matching algorithm has already been modified for NATS pattern-matching, also bloomrun is without types or updates in many years.
 
 ## Why?
 
@@ -15,6 +16,8 @@ The purpose of this library is similar to Hemera, in that it aims to allow you t
 This should allow for very simple Express/Koa-esque wiring between a NATS consumer and a business logic.
 
 ## Examples
+
+*Coming Soon*
 
 ## Tests
 
@@ -32,3 +35,12 @@ This project uses Typedoc for docs, they can be generated and run with [http-ser
 $ npm run build:docs
 $ http-server docs
 ```
+
+# TODO
+
+- [ ] Add examples and use cases
+- [ ] Make bloomrun.ts its own repo/library  
+- [ ] More configurations for the run (exectution order, async)  
+- [ ] Tests for different configurations
+- [ ] Github actions
+- [ ] Publish

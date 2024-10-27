@@ -223,8 +223,6 @@ describe('NatsRun', () => {
 
         Object.keys(tests).forEach(async (subject) => {
           router.add(subject, (msg) => { 
-            console.log(`Handler for ${subject} called`);
-            console.log(msg);
             tests[subject] = true;
           });
         });

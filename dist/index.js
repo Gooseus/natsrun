@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NatsRun = void 0;
-const bloomrun_1 = __importDefault(require("bloomrun"));
+const bloomrun_1 = __importDefault(require("./lib/bloomrun"));
 class PatternError extends Error {
     constructor(message, subject, error) {
         super(`PatternError: ${subject} => ${message}\n\nError: ${error?.message}`);
@@ -18,7 +18,7 @@ const NatsRouteRegExp = {
 };
 class NatsRun {
     map;
-    store = (0, bloomrun_1.default)();
+    store = new bloomrun_1.default();
     constructor() {
         this.map = new Map();
     }
@@ -58,7 +58,6 @@ class NatsRun {
         this.store.add(parsed, handles);
     }
     list(subject, opts = {}) {
-        console.log(opts);
         return this.store.list(subject?.split('.'), opts);
     }
     iterate(subject, opts = {}) {
@@ -72,7 +71,6 @@ class NatsRun {
      */
     async handle(subject, message) {
         const matches = this.iterate(subject);
-        console.log('matches', subject, this.list(subject, { patterns: true }));
         for (const { pattern, payload } of matches) {
             let idx = 0;
             for (const handler of payload) {
