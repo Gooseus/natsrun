@@ -210,6 +210,7 @@ describe('NatsRun', () => {
     describe('handling different kinds of routes appropriately', async () => {
       let router;
       let tests;
+      let results;
 
       beforeEach(() => {
         router = new NatsRun();
@@ -220,10 +221,12 @@ describe('NatsRun', () => {
           'order.*.new': false,
           'order.>': false
         };
-
-        Object.keys(tests).forEach(async (subject) => {
-          router.add(subject, (msg) => { 
-            tests[subject] = true;
+        results = [];
+        
+        Object.keys(tests).forEach(async (sub) => {
+          router.add(sub, (msg, { subject, pattern }) => { 
+            tests[sub] = true;
+            results.push([subject, pattern])
           });
         });
       });

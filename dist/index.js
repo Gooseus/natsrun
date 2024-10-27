@@ -1,10 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NatsRun = void 0;
-const bloomrun_1 = __importDefault(require("./lib/bloomrun"));
+import Bloomrun from './lib/bloomrun';
 class PatternError extends Error {
     constructor(message, subject, error) {
         super(`PatternError: ${subject} => ${message}\n\nError: ${error?.message}`);
@@ -16,9 +10,9 @@ const NatsRouteRegExp = {
     MATCH: /^[a-zA-z0-9-_]+$/,
     REST: /^[a-zA-z0-9-_.]+$/,
 };
-class NatsRun {
+export class NatsRun {
     map;
-    store = new bloomrun_1.default();
+    store = new Bloomrun();
     constructor() {
         this.map = new Map();
     }
@@ -72,12 +66,9 @@ class NatsRun {
     async handle(subject, message) {
         const matches = this.iterate(subject);
         for (const { pattern, payload } of matches) {
-            let idx = 0;
             for (const handler of payload) {
-                await handler(message, pattern[idx]);
-                idx++;
+                await handler(message, { subject: subject.split('.'), pattern });
             }
         }
     }
 }
-exports.NatsRun = NatsRun;

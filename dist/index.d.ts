@@ -1,6 +1,9 @@
 import Bloomrun from './lib/bloomrun';
 type NatsRoutes = Map<string, Handler[]>;
-type Handler = (msg: any, pattern?: string | RegExp) => Promise<void>;
+type Handler = (msg: any, match?: {
+    subject: string[];
+    pattern: Array<string | RegExp>;
+}) => Promise<void>;
 export declare class NatsRun {
     map: NatsRoutes;
     store: Bloomrun;

@@ -1,7 +1,7 @@
 import Bloomrun from './lib/bloomrun';
 
 type NatsRoutes = Map<string, Handler[]>;
-type Handler = (msg: any, pattern?: string | RegExp) => Promise<void>;
+type Handler = (msg: any, match?: { subject: string[], pattern: Array<string | RegExp> }) => Promise<void>;
 
 class PatternError extends Error {
   constructor(message: string, subject: string, error: Error) {
@@ -84,10 +84,8 @@ export class NatsRun {
     const matches = this.iterate(subject);
 
     for (const { pattern, payload } of matches) {
-      let idx = 0;
       for(const handler of payload) {
-        await handler(message, pattern[idx]);
-        idx++;
+        await handler(message, { subject: subject.split('.'), pattern });
       }
     }
   }

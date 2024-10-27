@@ -256,6 +256,7 @@ function match(pattern: Pattern, obj: Pattern): boolean {
     }
   }
 
+  // TODO: need to remove the REST_REGEXP dep and find more elegant way to handle NATS wildcards
   for(const [key, value] of Object.entries(obj)) {
     if(pattern[key] instanceof RegExp) {
       if(pattern[key].source === REST_REGEXP.source) break;
