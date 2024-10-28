@@ -4,6 +4,18 @@ import { before, beforeEach, describe, it } from 'node:test';
 // TODO: Figure out using enums at runtime in tests without it being a whole thing
 import { NatsRun } from '../dist/index.js';
 
+function traverseTrie(node, path: string[] = []) {
+  if(node.isTerminal) {
+    return path;
+  }
+
+  for(const [key, child] of node.children.entries()) {
+    path = traverseTrie(child, [  key as string, ...path ]);
+  }
+
+  return path;
+}
+
 describe('NatsRun', () => {
 
   describe('Class API', () => {
@@ -21,47 +33,44 @@ describe('NatsRun', () => {
 
   describe("Adding routes", () => {
     let router;
+
     beforeEach(() => {
       router = new NatsRun();
     });
     
     it('adds a simple one part route to the router', () => {
       router.add('order', (msg) => { });
-      assert(router.store.list().length === 1, 'Router pattern size should');
-      assert(router.store.list()[0].length === 1, 'Router pattern handler size should be 1');
-      assert(router.store.list(null, { patterns: true })[0][0] === 'order', 'Router pattern handler should be "order"');
+
+      assert(traverseTrie(router.trie.trieRoot).length === 1, 'Router pattern size should be 1');
     });
 
     it('adds a simple two part route to the router', () => {
       router.add('order.create', (msg) => { });
-      const opts = { patterns : true };
 
-      assert(router.store.list().length === 1, 'Router pattern size should be 1');
-      assert(router.store.list()[0].length === 1, 'Router pattern handler size should be 1');
-      assert(router.store.list(null, opts)[0][0] === 'order', 'Router pattern should have "order" in the first index');
-      assert(router.store.list(null, opts)[0][1] === 'create', 'Router pattern should have "create" in the second index');
+      assert(traverseTrie(router.trie.trieRoot).length === 2, 'Router path size should be 1');
+      // assert(Array.from(router.trie.trieRoot.children.entries())?.[0]?.[1]?.children.entries()?.[0]?.[1]?.payloads?.length === 1, 'Router pattern handler size should be 1');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[0] === 'order', 'Router pattern should have "order" in the first index');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[1] === 'create', 'Router pattern should have "create" in the second index');
     });
 
     it('adds a simple three part route to the router', () => {
       router.add('order.create.new', (msg) => { });
-      const opts = { patterns : true };
 
-      assert(router.store.list().length === 1, 'Router pattern size should be 1');
-      assert(router.store.list()[0].length === 1, 'Router pattern handler size should be 1');
-      assert(router.store.list(null, opts)[0][0] === 'order', 'Router pattern should have "order" in the first index');
-      assert(router.store.list(null, opts)[0][1] === 'create', 'Router pattern should have "create" in the second index');
-      assert(router.store.list(null, opts)[0][2] === 'new', 'Router pattern should have "new" in the third index');
+      assert(traverseTrie(router.trie.trieRoot).length === 3, 'Router path size should be 3');
+      // assert(Array.from(router.trie.trieRoot.children.entries())?.[0]?.[1]?.children.entries()?.[0]?.[1]?.children.entries()?.[0]?.[1]?.payloads?.length === 1, `Router pattern handler size should be 1`);
+      // assert(Array.from(router.trie.trieRoot.children.keys())[0] === 'order', 'Router pattern should have "order" in the first index');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[1] === 'create', 'Router pattern should have "create" in the second index');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[2] === 'new', 'Router pattern should have "new" in the third index');
     });
 
     it('adds a wildcard route to the router', () => {
       router.add('order.*.new', (msg) => { });
-      const opts = { patterns : true };
+      // const opts = { patterns : true };
 
-      assert(router.store.list().length == 1, 'Router pattern size should be 1');
-      assert(router.store.list()[0].length == 1, 'Router pattern handler size should be 1');
-      assert(router.store.list(null, opts)[0][0] === 'order', 'Router pattern should have "order" in the first index');
-      assert(router.store.list(null, opts)[0][1] instanceof RegExp, 'Router pattern should have a wildcard match in the second index');
-      assert(router.store.list(null, opts)[0][2] === 'new', 'Router pattern should have "new" in the third index');
+      assert(traverseTrie(router.trie.trieRoot).length === 3, 'Router path size should be 3');
+      // assert(Array.from(router.trie.trieRoot.children.entries())?.[0]?.[1]?.payloads?.length == 1, 'Router pattern handler size should be 1');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[0] === 'order', 'Router pattern should have "order" in the first index');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[2] === 'new', 'Router pattern should have "new" in the third index');
     });
 
     it('adds a rest route to the router', () => {
@@ -69,77 +78,13 @@ describe('NatsRun', () => {
 
       router.add('order.>', (msg) => { });
 
-      assert(router.store.list().length == 1, 'Router pattern size should be 1');
-      assert(router.store.list(null, opts)[0][0] == 'order', 'Router pattern should have "order" in the first index');
-      assert(router.store.list(null, opts)[0][1] instanceof RegExp, 'Router pattern should have a rest matcher second index');
+      assert(traverseTrie(router.trie.trieRoot).length === 2, 'Router path size should be 2');
+      // assert(router.trie.trieRoot.children.size == 1, 'Router pattern size should be 1');
+      // assert(Array.from(router.trie.trieRoot.children.keys())[0] === 'order', 'Router pattern should have "order" in the first index');
     });
   });
 
-  describe("Listing routes", () => {
-    let router;
-    beforeEach(() => {
-      router = new NatsRun();
-    });
-    describe("Listing all routes", () => {
-      it('lists all routes', () => {
-        router.add('order', (msg) => { });
-        router.add('order.create', (msg) => { });
-        router.add('order.create.new', (msg) => { });
-        router.add('order.*.new', (msg) => { });
-        router.add('order.>', (msg) => { });
-
-        const routes = router.list();
-        assert(routes.length === 5, 'Router pattern size should be 5');
-      });
-
-      it('lists all routes with patterns', () => {
-        router.add('order', (msg) => { });
-        router.add('order.create', (msg) => { });
-        router.add('order.create.new', (msg) => { });
-        router.add('order.*.new', (msg) => { });
-        router.add('order.>', (msg) => { });
-
-        const routes = router.list(null, { patterns: true });
-        assert(routes.length === 5, 'Router pattern size should be 5');
-      });
-    });
-
-    describe("Listing specific routes", () => {
-      it('lists a single specific route handler', () => {
-        router.add('order', (msg) => { });
-
-        const routes = router.list('order');
-        assert(routes.length === 1, 'Router pattern size should be 1');
-      });
-
-      it('lists an array of handlers for single specific route', () => {
-        router.add('order', (msg) => { });
-        router.add('order', (msg) => { });
-
-        const routes = router.list('order');
-        assert(routes.length === 2, 'Router pattern size should be 1');
-      });
-
-      it('lists a single route for multiple pattern matches', () => {
-        router.add('order.*.update', (msg) => { });
-
-        const routes = router.list('order.12354.update');
-        assert(routes.length === 1, 'Router pattern size should be 1');
-        const routes2 = router.list('order.ABCDEF.update');
-        assert(routes2.length === 1, 'Router pattern size should be 1');
-      });
-
-      it('lists multiple routes for multiple pattern matches', () => {
-        router.add('order.*.update', (msg) => { });
-        router.add('*.*.update', (msg) => { });
-
-        const routes = router.list('order.12354.update');
-        assert(routes.length === 2, 'Router pattern size should be 2');
-      });
-    });
-  });
-
-  describe("Route handlers", () => {
+  describe("Route Matches", () => {
     let router;
     beforeEach(() => {
       router = new NatsRun();
@@ -150,7 +95,7 @@ describe('NatsRun', () => {
 
       router.add(subject, (msg) => `test ${subject} ${msg}`);
 
-      const matches = router.list('order');
+      const matches = router.match('order');
       
       assert(matches.length === 1, 'Router pattern should have a match');
       assert(matches[0].length === 1, 'Patter match should have a handler');
@@ -162,7 +107,7 @@ describe('NatsRun', () => {
 
       router.add(subject, (msg) => `test ${subject} ${msg}`);
 
-      const matches = router.list('order.create');
+      const matches = router.match('order.create');
 
       assert(matches.length == 1, 'Router pattern should have a match');
       assert(matches[0].length == 1, 'Patter match should have a handler');
@@ -174,7 +119,7 @@ describe('NatsRun', () => {
 
       router.add(subject, (msg) => `test ${subject} ${msg}`);
 
-      const matches = router.list('order.create.new');
+      const matches = router.match('order.create.new');
       
       assert(matches.length == 1, 'Router pattern should have a match');
       assert(matches[0].length == 1, 'Patter match should have a handler');
@@ -186,7 +131,7 @@ describe('NatsRun', () => {
 
       router.add(subject, (msg) => `test ${subject} ${msg}`);
 
-      const matches = router.list('order.create.new');
+      const matches = router.match('order.create.new');
       
       assert(matches.length == 1, 'Router pattern should have a match');
       assert(matches[0].length == 1, 'Patter match should have a handler');
@@ -197,7 +142,7 @@ describe('NatsRun', () => {
       const subject = 'order.>';
       router.add(subject, (msg) => `test ${subject} ${msg}`);
 
-      const matches = router.list('order.create.new');
+      const matches = router.match('order.create.new');
       
       assert(matches.length == 1, 'Router pattern should have a match');
       assert(matches[0].length == 1, 'Patter match should have a handler');

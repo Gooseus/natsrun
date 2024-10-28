@@ -1,14 +1,10 @@
-import Bloomrun from './lib/bloomrun';
-type NatsRoutes = Map<string, Handler[]>;
-type Handler = (msg: any, match?: {
+export type Handler = (msg: any, match?: {
     subject: string[];
     pattern: Array<string | RegExp>;
 }) => Promise<void>;
 export declare class NatsRun {
-    map: NatsRoutes;
-    store: Bloomrun;
+    private trie;
     constructor();
-    parse(subject: string): Array<string | RegExp>;
     /**
      * Add a handler to the Router
      *
@@ -17,11 +13,13 @@ export declare class NatsRun {
      * @returns {NatsRoutes} The updated Router
      */
     add(subject: string, handler: Handler): void;
-    list(subject?: string, opts?: {}): Array<Handler[]>;
-    iterate(subject: string, opts?: {}): Iterable<{
-        pattern: Array<string | RegExp>;
-        payload: Handler[];
-    }>;
+    /**
+     * Return all the handlers that match the subject
+     *
+     * @param {string} subject The subject to match
+     * @returns {Array<Handler[]>} An array of handlers that match the subject
+     */
+    match(subject?: string): Array<Handler[]>;
     /**
      * Handle a message, calls each handler that matches the subject
      *
@@ -30,4 +28,3 @@ export declare class NatsRun {
      */
     handle(subject: string, message: any): Promise<void>;
 }
-export {};

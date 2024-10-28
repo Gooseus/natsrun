@@ -1,47 +1,13 @@
-import Bloomrun from './lib/bloomrun';
+import { NatsTrie } from "./lib/natstrie";
 
-type NatsRoutes = Map<string, Handler[]>;
-type Handler = (msg: any, match?: { subject: string[], pattern: Array<string | RegExp> }) => Promise<void>;
+// Handler is a function that takes a message and an optional match object
+export type Handler = (msg: any, match?: { subject: string[], pattern: Array<string | RegExp> }) => Promise<void>;
 
-class PatternError extends Error {
-  constructor(message: string, subject: string, error: Error) {
-    super(`PatternError: ${subject} => ${message}\n\nError: ${error?.message}`);
-    this.name = 'PatternError';
-    this.stack = error?.stack;
-  }
-}
-
-const NatsRouteRegExp: Record<string, RegExp> = {
-  MATCH: /^[a-zA-z0-9-_]+$/,
-  REST: /^[a-zA-z0-9-_.]+$/,
-};
-
+// NatsRun is a simple router that matches NATS subject patterns to handlers
 export class NatsRun {
-  map: NatsRoutes;
+  private trie = new NatsTrie();
 
-  store = new Bloomrun();
-
-  constructor() {
-    this.map = new Map();
-  }
-
-  parse(subject: string) : Array<string | RegExp> {
-    if(!subject || typeof subject !== 'string')
-      throw new PatternError('Invalid pattern', subject, new Error('Subject must be a string'));
-
-    const parsed = [];
-
-    for (const part of subject.split('.')) {
-      if (part === '>') {
-        parsed.push(NatsRouteRegExp.REST);
-        break;
-      }
-
-      parsed.push(part === '*' ? NatsRouteRegExp.MATCH : part);
-    }
-
-    return parsed;
-  }
+  constructor() {}
 
   /**
    * Add a handler to the Router
@@ -51,27 +17,20 @@ export class NatsRun {
    * @returns {NatsRoutes} The updated Router
    */
   add(subject: string, handler: Handler): void {
-    let parsed;
-    try {
-      parsed = this.parse(subject);
-    } catch (e) {
-      console.error(e);
-      if(e instanceof PatternError) throw e;
-      throw new PatternError('Invalid pattern', subject, e as Error);
-    }
-    
-    let handles = this.store.lookup(parsed) || [];
+    let handles = this.trie.match(subject) || [];
 
     handles.push(handler);
-    this.store.add(parsed, handles);
+    this.trie.insert(subject, handles);
   }
 
-  list(subject?: string, opts = {}): Array<Handler[]> {
-    return this.store.list(subject?.split('.'), opts);
-  }
-  
-  iterate(subject: string, opts = {}): Iterable<{ pattern: Array<string | RegExp>, payload: Handler[] }> {
-    return this.store.iterator(subject.split('.'), { patterns: true, payloads: true });
+  /**
+   * Return all the handlers that match the subject
+   * 
+   * @param {string} subject The subject to match
+   * @returns {Array<Handler[]>} An array of handlers that match the subject
+   */
+  match(subject = ''): Array<Handler[]> {
+    return this.trie.match(subject);
   }
 
   /**
@@ -81,11 +40,11 @@ export class NatsRun {
    * @param {any} message The message passed to the handler
    */
   async handle(subject: string, message: any): Promise<void> {
-    const matches = this.iterate(subject);
+    const matches = this.trie.match(subject);
 
-    for (const { pattern, payload } of matches) {
-      for(const handler of payload) {
-        await handler(message, { subject: subject.split('.'), pattern });
+    for (const handles of matches) {
+      for (const handler of handles) {
+        await handler(message, { subject });
       }
     }
   }
