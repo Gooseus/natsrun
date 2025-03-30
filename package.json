@@ -1,12 +1,15 @@
 {
   "name": "natsrun",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc",
+    "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
-    "test": "npm run build && tsx --test './test/**/*.spec.ts'"
+    "serve:docs": "./serve-docs.zsh",
+    "test": "npm run build && tsx --test"
   },
   "keywords": ["typescript", "nats", "router", "microservices", "bloomrun", "hemera", "patrun", "seneca"],
   "author": "Shawn Marincas (@gooseus)",

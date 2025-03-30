@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    // "target": "ES2020",
+    // "module": "ESNext",
+    // "moduleResolution": "node",
+    // "esModuleInterop": true,
+    // "strict": true,
+    // "skipLibCheck": true,
+    // "forceConsistentCasingInFileNames": true,
+    // "outDir": "./dist",
+    // "rootDir": ".",
+    // "baseUrl": ".",
+    // "paths": {
+    //   "natsrun": ["../../dist"]
+    // }
+    "target": "es2022",                                  /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
+    "module": "ES2022",                                /* Specify what module code is generated. */
+    "moduleResolution": "bundler",                          /* Specify how TypeScript looks up a file from a given module specifier. */
+    "declaration": true,                                 /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
+    "outDir": "./dist",                                  /* Redirect output structure to the directory. */
+    "rootDir": ".",                                  /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,                                      /* Enable all strict type-checking options. */
+    "esModuleInterop": true,                             /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

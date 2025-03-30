@@ -1,51 +1,227 @@
-import { NatsTrie } from "./lib/natstrie";
+import { ITrieNode, NatsTrie, InvalidSubjectError, InvalidPayloadError } from "./lib/natstrie/index.js";
 
-// Handler is a function that takes a message and an optional match object
-export type Handler = (msg: any, match?: { subject: string[], pattern: Array<string | RegExp> }) => Promise<void>;
+/**
+ * A message object that contains the subject, data, and specific headers of a NATS message.
+ */
+export type NatsMsg = {
+  subject: string;
+  data: Uint8Array;
+  headers?: Record<string, string>;
+}
 
-// NatsRun is a simple router that matches NATS subject patterns to handlers
+/**
+ * A handler function that processes NATS messages.
+ * @param msg - The message payload received from NATS
+ * @param match - Optional match object containing the matched subject
+ */
+export type Handler = (msg: NatsMsg) => Promise<void>;
+
+/**
+ * A node in the NATS subject pattern matching trie
+ */
+export type NatsTrieNode = ITrieNode<Handler>;
+
+/**
+ * Strategy for sorting handlers when multiple matches are found
+ * - 'specificity': Sort by pattern specificity (most specific first)
+ * - 'insertion': Maintain order of handler registration
+ * - 'custom': Use a custom sorting function
+ */
+export type NatsSortStrategy = 'specificity' | 'insertion' | 'custom';
+
+/**
+ * A function that sorts trie nodes
+ * @param a - The first node
+ * @param b - The second node
+ * @returns A number indicating the order of the nodes
+ */
+export type NatsSortFunction = (a: NatsTrieNode, b: NatsTrieNode) => number;
+
+/**
+ * Error thrown when an invalid NATS subject pattern is provided to NatsRun
+ */
+export class NatsRunSubjectError extends Error {
+  constructor(error: InvalidSubjectError | string) {
+    super(typeof error === 'string' ? error : error.message);
+    this.name = "NatsRunSubjectError";
+  }
+}
+
+/**
+ * Error thrown when an invalid handler is provided to NatsRun
+ */
+export class NatsRunHandlerError extends Error {
+  constructor(error: InvalidPayloadError | string) {
+    super(`Invalid handler: ${typeof error === 'string' ? error : error.reason}`);
+    this.name = "NatsRunHandlerError"; 
+  }
+}
+
+/**
+ * Error thrown when an error occurs in NatsRun
+ */
+export class NatsRunError extends Error {
+  constructor(error: Error | string) {
+    super(typeof error === 'string' ? error : error.message);
+    this.name = "NatsRunError";
+  }
+}
+
+
+/**
+ * NatsRun is a router that matches NATS subject patterns to handlers.
+ * It provides Express/Koa-like routing capabilities for NATS messages,
+ * allowing you to define handlers for specific subject patterns.
+ * 
+ * @example
+ * ```typescript
+ * const router = new NatsRun();
+ * 
+ * // Add a handler for user creation
+ * router.add('user.created', async (msg) => {
+ *   console.log('New user:', msg);
+ * });
+ * 
+ * // Handle a message
+ * await router.handle('user.created', { id: 1, name: 'John' });
+ * ```
+ */
 export class NatsRun {
-  private trie = new NatsTrie();
-
-  constructor() {}
+  /** 
+   * Array of handlers in order of registration
+   * Used when sortStrategy is 'insertion'
+   * @internal
+   */
+  private order: Handler[] = [];
 
   /**
-   * Add a handler to the Router
-   * 
-   * @param {string} subject The subject to register with the handler
-   * @param {Handler} handler The handler to be called when the subject matches
-   * @returns {NatsRoutes} The updated Router
+   * The underlying trie data structure used for pattern matching
+   * @internal
    */
-  add(subject: string, handler: Handler): void {
-    let handles = this.trie.match(subject) || [];
+  private trie = new NatsTrie<Handler>();
 
-    handles.push(handler);
-    this.trie.insert(subject, handles);
+  /**
+   * The strategy used for sorting matched handlers
+   * @internal
+   */
+  private sortStrategy: NatsSortStrategy;
+
+  /**
+   * Optional custom sorting function for handlers
+   * @internal
+   */
+  private customSort?: NatsSortFunction;
+
+  /**
+   * Creates a new NatsRun router
+   * @param opts - Configuration options
+   * @param opts.sortStrategy - Strategy for sorting matching handlers
+   * @param opts.customSort - Custom sorting function for handlers
+   */
+  constructor(opts: { sortStrategy?: NatsSortStrategy, customSort?: NatsSortFunction } = {}) {
+    this.sortStrategy = opts.sortStrategy ?? 'specificity';
+    this.customSort = opts.customSort;
   }
 
   /**
-   * Return all the handlers that match the subject
+   * Adds a handler for a specific subject pattern
    * 
-   * @param {string} subject The subject to match
-   * @returns {Array<Handler[]>} An array of handlers that match the subject
-   */
-  match(subject = ''): Array<Handler[]> {
-    return this.trie.match(subject);
-  }
-
-  /**
-   * Handle a message, calls each handler that matches the subject
+   * @param pattern - The NATS subject pattern to match
+   * @param handle - Handler function(s) to execute when pattern matches
    * 
-   * @param {string} subject The subject to match
-   * @param {any} message The message passed to the handler
+   * @example
+   * ```typescript
+   * // Single handler
+   * router.add('user.created', async (msg) => {
+   *   console.log('New user:', msg);
+   * });
+   * 
+   * // Multiple handlers
+   * router.add('user.updated', [
+   *   async (msg) => { console.log('Handler 1:', msg); },
+   *   async (msg) => { console.log('Handler 2:', msg); }
+   * ]);
+   * ```
    */
-  async handle(subject: string, message: any): Promise<void> {
-    const matches = this.trie.match(subject);
+  add(pattern: string, handle: Handler | Handler[]): void {
+    if (!Array.isArray(handle)) handle = [handle];
+    if (handle.some((h) => typeof h !== 'function')) throw new NatsRunHandlerError("must be a function");
 
-    for (const handles of matches) {
-      for (const handler of handles) {
-        await handler(message, { subject });
+    try {
+      this.trie.insert(pattern, handle);
+      this.order.push(handle[0]);
+    } catch (error) {
+      if (error instanceof InvalidSubjectError) {
+        throw new NatsRunSubjectError(error);
       }
+      if (error instanceof InvalidPayloadError) {
+        throw new NatsRunHandlerError(error);
+      }
+      if (error instanceof Error) {
+        throw new NatsRunError(error);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Returns all handlers that match the given subject
+   * 
+   * @param subject - The NATS subject to match
+   * @returns Array of matching handlers, sorted according to the configured strategy
+   * 
+   * @example
+   * ```typescript
+   * const handlers = router.match('user.123.updated');
+   * // Returns handlers matching 'user.123.updated', 'user.*.updated', etc.
+   * ```
+   */
+  match(subject = ''): Handler[] {
+    const matches = this.trie.match(subject);
+    let flatMatches = matches.flat();
+    let sortedMatches: NatsTrieNode[];
+
+    switch (this.sortStrategy) { 
+      case 'insertion':
+        sortedMatches = flatMatches.sort((a, b) => {
+          const aHandler = Array.isArray(a.payload) ? a.payload[0] : a.payload;
+          const bHandler = Array.isArray(b.payload) ? b.payload[0] : b.payload;
+          return this.order.indexOf(aHandler as Handler) - this.order.indexOf(bHandler as Handler);
+        });
+        break;
+      case 'custom':
+        sortedMatches = flatMatches.sort(this.customSort!);
+        break;
+      case 'specificity':
+        sortedMatches = flatMatches.sort((a, b) => b.depth - a.depth);
+        break;
+      default:
+        sortedMatches = flatMatches;
+        break;
+    }
+
+    return sortedMatches.map(({ payload }) => payload).flat().filter(x=>x !== null);
+  }
+
+  /**
+   * Executes all handlers that match the given subject
+   * 
+   * @param subject - The NATS subject to match
+   * @param message - The message payload to pass to handlers
+   * 
+   * @example
+   * ```typescript
+   * await router.handle('user.123.updated', {
+   *   id: 123,
+   *   name: 'John Doe'
+   * });
+   * ```
+   */
+  async handle(subject: string, message: Uint8Array, headers?: Record<string, string>): Promise<void> {
+    const matches = this.match(subject);
+
+    for (const handler of matches) {
+      await handler({ subject, headers, data: message });
     }
   }
 }

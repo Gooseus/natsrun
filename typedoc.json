@@ -1,0 +1,28 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "exclude": ["**/*.test.ts"],
+  "hideGenerator": true,
+  "theme": "default",
+  "name": "NATSrun Documentation",
+  "readme": "README.md",
+  "sort": ["source-order"],
+  "visibilityFilters": {
+    "protected": true,
+    "private": true,
+    "inherited": true,
+    "external": true
+  },
+  "includeVersion": true,
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "categorizeByGroup": true,
+  "categoryOrder": ["*", "Classes", "Interfaces", "Types", "Functions"],
+  "disableSources": true,
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": true
+  }
+} 
