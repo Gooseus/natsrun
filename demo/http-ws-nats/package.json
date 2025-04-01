@@ -1,0 +1,22 @@
+{
+  "name": "natsrun-http-demo",
+  "version": "1.0.0",
+  "description": "Demo of HTTP to NATS message routing with JetStream support",
+  "main": "example.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-transform-types example.ts"
+  },
+  "dependencies": {
+    "@nats-io/jetstream": "^3.0.0",
+    "@nats-io/nats-core": "^3.0.0",
+    "@nats-io/transport-node": "^3.0.0",
+    "angular-expressions": "^1.4.3",
+    "natsrun": "file:../../dist",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.13",
+    "@types/ws": "^8.18.0"
+  }
+}

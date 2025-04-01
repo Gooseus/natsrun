@@ -1,71 +1,78 @@
 # Basic Routing Demo
 
-This demo shows how to use natsrun for basic message routing in NATS.
+This demo shows how to use natsrun for basic message routing in NATS, demonstrating how to create middleware-style message handlers similar to Express/Koa for HTTP requests.
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - Node.js (v16 or later)
 - npm or yarn
-- nats-cli
+- nats-cli (NATS command-line interface)
 
-## Setup
+## Quick Start
 
-0. Install and Run the [Docker Runtime](https://docs.docker.com/engine/install/)
+1. Start NATS server:
+```bash
+docker-compose up -d
+```
 
-1. Install the [NATS CLI](https://github.com/nats-io/natscli)
+2. Install dependencies:
+```bash
+npm install
+```
 
-2. Clone and open the repo
+3. Run the demo:
+```bash
+npm start
+```
+
+## Testing the Routes
+
+The demo sets up two routing patterns that you can test using the NATS CLI:
+
+### 1. Greeting Route (`greet.*`)
+Responds with a greeting using the wildcard part of the subject:
+```bash
+nats pub 'greet.world' 'Hello'
+```
+
+### 2. Echo Route (`echo.*`)
+Echoes back any message payload:
+```bash
+nats pub 'echo.test' 'Test message'
+```
+
+## Implementation Details
+
+This demo showcases:
+- Setting up a NATS connection
+- Creating a message router
+- Defining wildcard routes
+- Handling incoming messages
+- Request-response patterns
+
+## Development Setup
+
+1. Install Docker: [Docker Installation Guide](https://docs.docker.com/engine/install/)
+
+2. Install NATS CLI:
+   - GitHub: [nats-io/natscli](https://github.com/nats-io/natscli)
+   - Follow installation instructions for your platform
+
+3. Clone the repository:
 ```bash
 git clone https://github.com/Gooseus/natsrun.git
 cd natsrun
 ```
 
-2. Compose and start the NATS server with Docker:
-```bash
-docker-compose up -d
-```
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-3. Run the example app:
-```bash
-npm start
-```
-
-## Send test messages with the CLI:
-
-### Hello World
-
-```bash
-> nats pub 'greet.world' 'Hello'
-```
-
-### Echo
-```bash
-> nats pub 'echo test' 'Test'
-```
-
-## What's Happening?
-
-This demo demonstrates two basic routing patterns:
-
-1. `greet.*` - A route that responds with a greeting using the wildcard part of the subject
-2. `echo.*` - A route that simply echoes back the message payload
-
-The example shows how to:
-- Connect to NATS
-- Create a router
-- Define routes with wildcards
-- Handle incoming messages
-- Send requests and receive responses
-
 ## Cleanup
 
-To stop the NATS server:
+Stop the NATS server:
 ```bash
 docker-compose down
-``` 
+```
+
+## Additional Resources
+
+- [NATS Documentation](https://docs.nats.io/)
+- [NATS CLI Documentation](https://github.com/nats-io/natscli#readme) 
