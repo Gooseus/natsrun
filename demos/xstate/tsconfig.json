@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "outDir": "./dist",
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "target": "ES2022",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+} 

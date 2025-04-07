@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NATS WebSocket Game Demo</title>
+</head>
+<body>
+    <h1>NATS WebSocket Game Demo</h1>
+    <div id="messages"></div>
+    <script>
+        const ws = new WebSocket('ws://' + window.location.host + '/{{gameId}}/{{clientId}}');
+        
+        ws.onmessage = function(event) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += '<p>' + event.data + '</p>';
+        };
+
+        ws.onopen = function() {
+            console.log('Connected to WebSocket server');
+        };
+    </script>
+</body>
+</html> 
