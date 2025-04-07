@@ -40,7 +40,7 @@ function fromUint8Array(arr?: Uint8Array): string | number {
 }
 
 
-const alphaSort = (a: string, b: string) => {
+function alphaSort(a: string, b: string) {
   const aTopics = a.split(".");
   const bTopics = b.split(".");
   const aLast = aTopics[aTopics.length - 1];

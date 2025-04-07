@@ -1,5 +1,5 @@
 import type { NatsConnection } from '@nats-io/nats-core';
-import type { IPFMetadata } from '../machines/ipf';
+import type { IPFMetadata, TStartEvent } from '../machines/ipf';
 import { after, before, describe, it} from 'node:test';
 import assert from 'node:assert';
 import { connect } from '@nats-io/transport-node';
@@ -194,7 +194,7 @@ describe('IPF Worker Integration Tests', () => {
     })();
     
     actor.start();
-    actor.send({ type: 'START', metadata });
+    actor.send({ type: 'START', metadata } as TStartEvent);
 
     // Publish test data through NATS
     await nc.publish('machine.ipf.data', JSON.stringify([0]));
