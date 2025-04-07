@@ -40,9 +40,9 @@ The `createNatsActor` is a factory that creates an XState actor that will:
   ```bash
     npm install
   ```
-3. Start the demo:
+3. Start the demo in the demo folder:
   ```bash
-    $ npm start
+    $ node counter/demo.ts
   ```
 
 ## Testing the Examples

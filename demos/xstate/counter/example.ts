@@ -1,6 +1,6 @@
 import { connect } from "@nats-io/transport-node";
-import { createCounter } from "./machines";
-import { createNatsActor } from "../actors";
+import { createCounter } from "./machines/index.ts";
+import { createNatsActor } from "../actors/index.ts";
 
 const MACHINE_ID = "counter";
 const countingMachine = createCounter(MACHINE_ID, 0);

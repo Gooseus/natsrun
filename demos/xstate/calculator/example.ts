@@ -1,6 +1,6 @@
 import { connect } from "@nats-io/transport-node";
-import { createCalculator } from "./machines";
-import { createNatsActor } from "../actors";
+import { createCalculator } from "./machines/index.ts";
+import { createNatsActor } from "../actors/index.ts";
 
 const MACHINE_ID = "calculator";
 const calculatorMachine = createCalculator(MACHINE_ID);
