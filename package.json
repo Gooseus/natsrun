@@ -8,7 +8,6 @@
     "build": "tsc",
     "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
-    "serve:docs": "./serve-docs.zsh",
     "test": "npm run build && tsx --test"
   },
   "keywords": [
