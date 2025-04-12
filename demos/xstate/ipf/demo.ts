@@ -1,4 +1,4 @@
-import type { IPFActor } from "./machines";
+import type { IPFActor } from "./machines/index.ts";
 import type { Subscription } from "@nats-io/nats-core";
 import { createReadStream, readFileSync } from 'fs';
 import { connect } from "@nats-io/transport-node";
@@ -41,9 +41,22 @@ async function main() {
       console.log(key, value);
     }
     
-
     const ipfMachine = createIPFWorker('ipf');
     const actor: IPFActor = createNatsActor(ipfMachine, nc);
+
+    async function shutdown() {
+      console.log('shutting down.');
+      try {
+        await Promise.all([
+          Promise.race([ actor.stop(), createTimeoutPromise("Actor stop", 5000) ]),
+          Promise.race([ nc.drain(), createTimeoutPromise("NATS drain", 5000) ])
+        ]);
+        process.exit(0);
+      } catch (err) {
+        console.error("Shutdown error:", err);
+        process.exit(1);
+      }
+    }
 
     (async (sub: Subscription) => {
       for await (const msg of sub) {
@@ -52,7 +65,7 @@ async function main() {
       }
       console.log('done.');
       sub.unsubscribe();
-      process.emit('SIGINT');
+      shutdown();
     })(nc.subscribe('machine.ipf.complete'));
 
     actor.start();
@@ -65,19 +78,7 @@ async function main() {
 
     actor.send({ type: 'COMPLETE' });
 
-    process.on("SIGINT", async () => {
-      console.log('shutting down.');
-      try {
-        await Promise.all([
-          Promise.race([ actor.stop(), createTimeoutPromise("Actor stop", 5000) ]),
-          Promise.race([ nc.drain(), createTimeoutPromise("NATS drain", 5000) ])
-        ]);
-        process.exit(0);
-      } catch (err) {
-        console.error("Shutdown error:", err);
-        process.exit(1);
-      }
-    });
+    process.on("SIGINT", shutdown);
   } catch (err) {
     console.error(err);
     process.exit(1);

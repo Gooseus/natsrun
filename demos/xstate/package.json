@@ -5,7 +5,10 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "start": "tsx index.ts",
+    "start:calc": "node calculator/demo.ts",
+    "start:counter": "node counter/demo.ts",
+    "start:ipf": "node ipf/demo.ts",
+    "start:middleware": "node middleware/demo.ts",
     "test": "node --experimental-strip-types --test ./**/tests/*.test.ts"
   },
   "dependencies": {

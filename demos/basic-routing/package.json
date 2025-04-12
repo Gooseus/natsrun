@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Basic routing example for natsrun",
   "type": "module",
-  "main": "example.ts",
+  "main": "demo.ts",
   "scripts": {
-    "start": "node --experimental-transform-types example.ts"
+    "start": "node --experimental-transform-types demo.ts"
   },
   "dependencies": {
     "@nats-io/jetstream": "^3.0.0",
