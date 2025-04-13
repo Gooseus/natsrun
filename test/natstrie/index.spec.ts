@@ -18,7 +18,7 @@ describe('NatsTrie', () => {
 
       test('Trie search with exact match', () => {
         const result = trie.search('foo.bar.baz');
-        assert.deepEqual(result?.payload, 'payload1');
+        assert.deepEqual(result?.payload, [ 'payload1' ]);
       });
 
       test('Trie search with no match', () => {
@@ -36,7 +36,7 @@ describe('NatsTrie', () => {
 
         test('Trie search with single match wildcard', () => {
         const result = trie.search('foo.anyvalue.baz');
-          assert.deepEqual(result?.payload, 'payload1');
+          assert.deepEqual(result?.payload, [ 'payload1' ]);
         });
 
         test('Trie search with no match', () => {
@@ -52,7 +52,7 @@ describe('NatsTrie', () => {
 
         test('Searching a matching pattern at the end', () => {
           const result = trie.search('foo.baz.anyvalue');
-          assert.deepEqual(result?.payload, 'payload1');
+          assert.deepEqual(result?.payload, [ 'payload1' ]);
         });
 
         test('Searching a non-matching pattern at the end', () => {
@@ -74,7 +74,7 @@ describe('NatsTrie', () => {
 
       test('Searching a full match pattern with matching subject', () => {
         const result = trie.search('foo.bar.baz')
-        assert.deepEqual(result?.payload, 'payload1');
+        assert.deepEqual(result?.payload, [ 'payload1' ]);
       });
     });
   });

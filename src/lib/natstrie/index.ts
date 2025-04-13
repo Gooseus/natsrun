@@ -4,8 +4,6 @@
  * @typeParam T - The type of payload stored in the trie node
  */
 export interface ITrieNode<T> {
-  /** the order of insertion */
-  order: number;
   /** The depth of this node in the trie (0 for root) */
   depth: number;
   /** The topic token this node represents */
@@ -13,7 +11,7 @@ export interface ITrieNode<T> {
   /** Map of child nodes keyed by their topic tokens */
   branches: Map<string, ITrieNode<T>>;
   /** The payload stored at this node, can be a single value or array */
-  payload: T | T[] | null;
+  payload: T | T[];
   /** Whether this node represents a complete topic pattern */
   isLeaf: boolean;
 }
@@ -58,8 +56,6 @@ export type TTrieOpts = {
   isLeaf?: boolean;
   /** The subject token this node represents */
   topic?: string;
-  /** The order of insertion */
-  order?: number;
 };
 
 /**
@@ -218,8 +214,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
  * @param opts Trie options
  * @returns new Trie node
  */
-function createTrie<T>({ depth = 0, isLeaf = false, topic = "", order = 0 }: TTrieOpts = {}): ITrieNode<T> {
-  return { branches: new Map(), payload: null, depth, isLeaf, topic, order };
+function createTrie<T>({ depth = 0, isLeaf = false, topic = "" }: TTrieOpts = {}): ITrieNode<T> {
+  return { branches: new Map(), payload: [] as T[], depth, isLeaf, topic };
 }
 
 /**
@@ -233,29 +229,25 @@ function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[]
   let node = trie;
   for (const topic of subjectTopics) {
     if (!node.branches.has(topic)) {
-      node.branches.set(topic, createTrie({ depth: node.depth + 1, topic, order: node.order + 1 }));
+      node.branches.set(topic, createTrie({ depth: node.depth + 1, topic }));
     }
     if (node.topic === ">") break;
 
     node = node.branches.get(topic)!;
   }
   node.isLeaf = true;
-  if (node.payload) {
-    if (Array.isArray(node.payload)) {
-      if (Array.isArray(payload)) {
-        node.payload.push(...payload);
-      } else {
-        node.payload.push(payload);
-      }
+  if (Array.isArray(node.payload)) {
+    if (Array.isArray(payload)) {
+      node.payload.push(...payload);
     } else {
-      if (Array.isArray(payload)) {
-        node.payload = [node.payload, ...payload];
-      } else {
-        node.payload = [node.payload, payload];
-      }
+      node.payload.push(payload);
     }
   } else {
-    node.payload = payload;
+    if (Array.isArray(payload)) {
+      node.payload = [node.payload, ...payload];
+    } else {
+      node.payload = [node.payload, payload];
+    }
   }
 }
 

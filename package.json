@@ -1,6 +1,6 @@
 {
   "name": "natsrun",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "tsc",
     "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
-    "test": "npm run build && tsx --test"
+    "test": "tsx --test"
   },
   "keywords": [
     "typescript",
@@ -25,7 +25,7 @@
   "description": "Simple application message router using NATS subject pattern-matching. Based on core Hemera/Seneca pattern-matching libraries.",
   "devDependencies": {
     "@types/node": "^22.8.0",
-    "tsx": "^4.19.1",
+    "tsx": "^4.19.3",
     "typedoc": "^0.26.10",
     "typescript": "^5.6.3"
   }

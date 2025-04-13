@@ -1,5 +1,6 @@
 .vscode
 .cursor
+.cursorignore
 node_modules
 docs
 dist
