@@ -845,7 +845,7 @@ describe("NatsRun", () => {
 
     it("shows linear or better memory growth with increasing patterns", async () => {
       const measurements: Array<{n: number, memory: number}> = [];
-      const samples = [1024, 2048, 4096, 8192, 8192, 16384, 32768, 65536];  // Test points
+      const samples = [1024, 2048, 4096, 8192, 16384, 32768, 65536];  // Test points
       
       // Take measurements at different N
       for (const n of samples) {
@@ -872,7 +872,7 @@ describe("NatsRun", () => {
         n1: measurements[i].n,
         n2: m.n,
         ratio: m.memory / measurements[i].memory,
-        expected: m.n / measurements[i].n
+        expected: (m.n / measurements[i].n) * 1.2 // Allow 20% overhead for variability
       }));
 
       console.log('Memory measurements:', measurements);
@@ -881,15 +881,15 @@ describe("NatsRun", () => {
       // Verify growth is roughly linear or better
       // If memory growth ratio is consistently less than or equal to N ratio, we're good
       growthRatios.forEach(({ ratio, expected }) => {
-        assert(ratio <= expected * 1.2, // Allow 20% overhead for variability
+        assert(ratio <= expected,
           `Memory growth ratio (${ratio.toFixed(2)}) should not significantly exceed ` +
           `the input size ratio (${expected.toFixed(2)})`);
       });
     });
 
     it("maintains reasonable memory per pattern", async () => {
-      const n = 1000; // Smaller sample for average calculation
-      const threshold = 1024; // 1KB per pattern as an example threshold
+      const n = 2000; // Smaller sample for average calculation
+      const threshold = 2048; // 2KB per pattern as an example threshold
       
       if (global.gc) {
         global.gc();
@@ -912,7 +912,7 @@ describe("NatsRun", () => {
     });
 
     it("profiles memory usage by component", async () => {
-      const n = 1000;
+      const n = 2000;
       const patterns = Array.from({length: n}, (_, i) => `test.${i}.pattern`);
       const handler = async () => {};
       

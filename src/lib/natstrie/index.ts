@@ -43,10 +43,22 @@ export interface ITrieNode<T> {
   l?: boolean;
 }
 
+// // Optimized node structure
+// interface OptimizedTrieNode<T> {
+//   // Use a single byte for flags (leaf, branch type, etc)
+//   flags: number;
+//   // Use a more compact branch representation
+//   branch: CompactBranch<T>;
+//   // Use a fixed-size array for payloads
+//   payloads: T[];
+//   // Use string interning for topics
+//   topic: number; // Index into string pool
+// }
+
 type ITrieMapNode<T> = ITrieNode<T> & { b: MapBranch<T> };
 type ITrieArrayNode<T> = ITrieNode<T> & { b: ArrayBranch<T> };
 
-export const DEFAULT_ARRAY_TO_MAP_THRESHOLD = 8;
+export const DEFAULT_ARRAY_TO_MAP_THRESHOLD = 32;
 
 /**
  * A trie data structure optimized for NATS subject pattern matching.
