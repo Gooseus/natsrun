@@ -278,19 +278,27 @@ function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[]
     const topic = subjectTopics[i];
     const isLast = i === lastIndex;
 
-    // Get or create child node
-    let child = BranchOps.get(currentNode.b, topic);
-    if (!child) {
-      // Check if we need to convert to map
-      if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
-        currentNode = convertToMap(currentNode);
+    if (isLast) {
+      let child = BranchOps.get(currentNode.b, topic);
+      if (!child) {
+        if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
+          currentNode = convertToMap(currentNode);
+        }
+        child = createTrie({ topic, isLeaf: true });
+        BranchOps.set(currentNode.b, topic, child);
       }
-      
-      child = createTrie({ topic, isLeaf: isLast });
-      BranchOps.set(currentNode.b, topic, child);
+      currentNode = child;
+    } else {
+      let child = BranchOps.get(currentNode.b, topic);
+      if (!child) {
+        if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
+          currentNode = convertToMap(currentNode);
+        }
+        child = { b: { _t: BranchType.Array, i: [] }, t: topic };
+        BranchOps.set(currentNode.b, topic, child);
+      }
+      currentNode = child;
     }
-
-    currentNode = child;
   }
 
   // Handle payload
