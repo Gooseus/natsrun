@@ -74,7 +74,6 @@ describe('NatsTrie', () => {
 
       it('Searching a full match pattern with matching subject', () => {
         const result = trie.search('foo.bar.baz')
-        console.log(result);
         assert.deepEqual(result?.p, [ 'payload1' ]);
       });
     });

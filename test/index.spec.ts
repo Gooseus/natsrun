@@ -187,7 +187,7 @@ describe("NatsRun", () => {
 
       router.add(subject, ({ data }) => `test ${subject} ${fromUint8Array(data)}`);
 
-      const matches = router.match("order.create.new");
+      const matches = router.match("order.create.new", true);
 
       assert(matches.length == 1, "Router pattern should have a match");
       assert(matches[0].length == 1, "Patter match should have a handler");
@@ -202,7 +202,7 @@ describe("NatsRun", () => {
       const subject = "order.>";
       router.add(subject, ({ data }) => `test ${subject} ${fromUint8Array(data)}`);
 
-      const matches = router.match("order.create.new");
+      const matches = router.match("order.create.new", true);
 
       assert(matches.length == 1, "Router pattern should have a match");
       assert(matches[0].length == 1, "Patter match should have a handler");

@@ -1,3 +1,5 @@
+import { StringPool } from './string-pool.js';
+
 /**
  * The type of branch in the trie
  */
@@ -11,7 +13,7 @@ export enum BranchType {
  */
 type ArrayBranch<T> = {
   _t: BranchType.Array;
-  i: Array<[string, ITrieNode<T>]>;
+  i: Array<[number, ITrieNode<T>]>;
 };
 /**
  * A branch of the trie, a map of [topic, node] tuples
@@ -19,7 +21,7 @@ type ArrayBranch<T> = {
  */
 type MapBranch<T> = {
   _t: BranchType.Map;
-  i: Map<string, ITrieNode<T>>;
+  i: Map<number, ITrieNode<T>>;
 };
 /**
  * A branch of the trie, either a map or an array of [topic, node] tuples
@@ -33,8 +35,8 @@ type Branch<T> = ArrayBranch<T> | MapBranch<T>;
  * @typeParam T - The type of payload stored in the trie node
  */
 export interface ITrieNode<T> {
-  /** The topic token this node represents */
-  t?: string;
+  /** The topic token ID this node represents (from string pool) */
+  t?: number;
   /** The branch of the trie, either a map or an array of [topic, node] tuples */
   b: Branch<T>;
   /** The payload stored at this node, can be a single value or array */
@@ -42,18 +44,6 @@ export interface ITrieNode<T> {
   /** Whether this node represents a complete topic pattern */
   l?: boolean;
 }
-
-// // Optimized node structure
-// interface OptimizedTrieNode<T> {
-//   // Use a single byte for flags (leaf, branch type, etc)
-//   flags: number;
-//   // Use a more compact branch representation
-//   branch: CompactBranch<T>;
-//   // Use a fixed-size array for payloads
-//   payloads: T[];
-//   // Use string interning for topics
-//   topic: number; // Index into string pool
-// }
 
 type ITrieMapNode<T> = ITrieNode<T> & { b: MapBranch<T> };
 type ITrieArrayNode<T> = ITrieNode<T> & { b: ArrayBranch<T> };
@@ -176,6 +166,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
   trieRoot: ITrieNode<T>;
   /** The threshold for converting an array of [topic, node] tuples to a map */
   arrayToMapThreshold: number;
+  /** The string pool for interning topic strings */
+  private stringPool: StringPool;
 
   /**
    * Create a new NatsTrie instance
@@ -183,7 +175,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param node Optional initial trie node to use
    */
   constructor(node?: ITrieNode<T>, opts: { arrayToMapThreshold?: number } = {}) {
-    this.trieRoot = node ?? createTrie();
+    this.stringPool = new StringPool(['*', '>']);
+    this.trieRoot = node ?? createTrie({ stringPool: this.stringPool });
     this.arrayToMapThreshold = opts.arrayToMapThreshold ?? DEFAULT_ARRAY_TO_MAP_THRESHOLD;
   }
 
@@ -224,7 +217,7 @@ export class NatsTrie<T> implements INatsTrie<T> {
     if (topics.some((topic) => topic === "")) throw new InvalidSubjectError(subject, "cannot contain empty topics");
     if (topics.indexOf(">") !== -1 && topics.indexOf(">") !== topics.length - 1) throw new InvalidSubjectError(subject, '">" must be the last topic');
 
-    insert(this.trieRoot, topics, payload);
+    insert(this.trieRoot, topics, payload, this.stringPool);
   }
 
   /**
@@ -233,8 +226,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param subject the subject to lookup
    * @returns the array of payloads that match the subject
    */
-  match(subject: string): ITrieNode<T>[] {
-    return match(this.trieRoot, subject.split("."));
+  match(subject: string, debug: boolean = false): ITrieNode<T>[] {
+    return match(this.trieRoot, subject.split("."), this.stringPool, debug);
   }
 
   /**
@@ -244,7 +237,7 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @returns the node that matches the subject
    */
   find(subject: string): ITrieNode<T> | undefined {
-    return find(this.trieRoot, subject.split("."));
+    return find(this.trieRoot, subject.split("."), this.stringPool);
   }
 
   /**
@@ -253,8 +246,26 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param subject the subject to search for
    * @returns the node that matches the subject
    */
-  search(subject: string): ITrieNode<T> | undefined {
-    return search(this.trieRoot, subject.split("."));
+  search(subject: string, debug: boolean = false): ITrieNode<T> | undefined {
+    return search(this.trieRoot, subject.split("."), this.stringPool, 0, debug);
+  }
+
+  /**
+   * Get the string for a topic ID
+   * @param id The topic ID to look up
+   * @returns The string associated with the ID
+   */
+  getTopicString(id: number): string {
+    return this.stringPool.getString(id);
+  }
+
+  /**
+   * Get the ID for a topic string
+   * @param str The string to intern
+   * @returns The ID of the string in the pool
+   */
+  getTopicId(str: string): number {
+    return this.stringPool.intern(str);
   }
 }
 
@@ -266,12 +277,12 @@ export class NatsTrie<T> implements INatsTrie<T> {
  * @param opts Trie options
  * @returns new Trie node
  */
-function createTrie<T>({ isLeaf = false, topic = "" }: TTrieOpts = {}): ITrieNode<T> {
+function createTrie<T>({ isLeaf = false, topic = "", stringPool }: TTrieOpts & { stringPool: StringPool }): ITrieNode<T> {
   return {
     b: { _t: BranchType.Array, i: [] },
     p: [] as T[],
     l: isLeaf,
-    t: topic
+    t: topic ? stringPool.intern(topic) : undefined
   };
 }
 
@@ -281,33 +292,35 @@ function createTrie<T>({ isLeaf = false, topic = "" }: TTrieOpts = {}): ITrieNod
  * @param trie the trie to insert into
  * @param subjectTopics the subject topics to insert under
  * @param payload the payload to insert
+ * @param stringPool the string pool to use for interning topic strings
  */
-function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[]): void {
+function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[], stringPool: StringPool): void {
   let currentNode = trie;
   const lastIndex = subjectTopics.length - 1;
 
   for (let i = 0; i < subjectTopics.length; i++) {
     const topic = subjectTopics[i];
+    const topicId = stringPool.intern(topic);
     const isLast = i === lastIndex;
 
     if (isLast) {
-      let child = BranchOps.get(currentNode.b, topic);
+      let child = BranchOps.get(currentNode.b, topicId);
       if (!child) {
         if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
           currentNode = convertToMap(currentNode);
         }
-        child = createTrie({ topic, isLeaf: true });
-        BranchOps.set(currentNode.b, topic, child);
+        child = createTrie({ topic, isLeaf: true, stringPool });
+        BranchOps.set(currentNode.b, topicId, child);
       }
       currentNode = child;
     } else {
-      let child = BranchOps.get(currentNode.b, topic);
+      let child = BranchOps.get(currentNode.b, topicId);
       if (!child) {
         if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
           currentNode = convertToMap(currentNode);
         }
-        child = { b: { _t: BranchType.Array, i: [] }, t: topic };
-        BranchOps.set(currentNode.b, topic, child);
+        child = createTrie({ topic, stringPool });
+        BranchOps.set(currentNode.b, topicId, child);
       }
       currentNode = child;
     }
@@ -334,36 +347,57 @@ function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[]
 function convertToMap<T>(node: ITrieNode<T>): ITrieNode<T> {
   if (node.b._t === BranchType.Map) return node;
   
-  node.b = { _t: BranchType.Map, i: new Map(node.b.i) };
-  return node as ITrieMapNode<T>;
+  const map = new Map<number, ITrieNode<T>>();
+  for (const [key, value] of node.b.i) {
+    map.set(key, value);
+  }
+  
+  node.b = { _t: BranchType.Map, i: map };
+  return node;
 }
 
-function search<T>(trie: ITrieNode<T>, subjectTopics: string[], depth: number = 0): ITrieNode<T> | undefined {
-  if ((depth === subjectTopics.length && trie.l) || trie.t === ">") {
-    return trie;
+function search<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool, depth: number = 0, debug: boolean = false): ITrieNode<T> | undefined {
+  if (debug) console.log("search 1", trie, subjectTopics, depth);
+  if (depth === subjectTopics.length) {
+    if (trie.l || trie.t === stringPool.intern(">")) {
+      return trie;
+    }
+    return undefined;
   }
   
   if (!trie.t && depth > 0) return undefined;
 
   const topic = subjectTopics[depth];
+  const topicId = stringPool.intern(topic);
+  const starId = stringPool.intern("*");
+  const gtId = stringPool.intern(">");
+
+  if (debug) console.log("search 2", topic, topicId, starId, gtId);
 
   // Check exact match
-  const exactMatch = BranchOps.get(trie.b, topic);
+  const exactMatch = BranchOps.get(trie.b, topicId);
+  if (debug) console.log("search 3 exactMatch", exactMatch);
   if (exactMatch) {
-    return search(exactMatch, subjectTopics, depth + 1);
-  }
-
-  // Check wildcards
-  const starMatch = BranchOps.get(trie.b, "*");
-  if (starMatch) {
-    const result = search(starMatch, subjectTopics, depth + 1);
+    const result = search(exactMatch, subjectTopics, stringPool, depth + 1, debug);
     if (result) return result;
   }
 
-  const gtMatch = BranchOps.get(trie.b, ">");
-  if (gtMatch) {
-    return search(gtMatch, subjectTopics, depth + 1);
+  // Check wildcards
+  const starMatch = BranchOps.get(trie.b, starId);
+  if (debug) console.log("search 3 starMatch", starMatch);
+  if (starMatch) {
+    const result = search(starMatch, subjectTopics, stringPool, depth + 1, debug);
+    if (result) return result;
   }
+
+  // Check greater-than
+  const gtMatch = BranchOps.get(trie.b, gtId);
+  if (debug) console.log("search 3 gtMatch", gtMatch);
+  if (gtMatch) {
+    return gtMatch;
+  }
+
+  return undefined;
 }
 
 /**
@@ -371,47 +405,49 @@ function search<T>(trie: ITrieNode<T>, subjectTopics: string[], depth: number = 
  *
  * @param trie the trie to lookup in
  * @param subjectTopics the subject topics to lookup
+ * @param stringPool the string pool to use for interning topic strings
  * @returns array of payloads that match the subject
  */
-function match<T>(trie: ITrieNode<T>, subjectTopics: string[]): ITrieNode<T>[] {
+function match<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool, debug: boolean = false): ITrieNode<T>[] {
   let results: ITrieNode<T>[] = [];
-
-  function search(node: ITrieNode<T>, index: number): void {
-    if ((index === subjectTopics.length && node.l) || node.t === ">") {
-      results.push(node);
+  const starId = stringPool.intern("*");
+  const gtId = stringPool.intern(">");
+  
+  function _search(node: ITrieNode<T>, index: number): void {
+    if (index === subjectTopics.length) {
+      if (node.l || node.t === gtId) {
+        results.push(node);
+      }
       return;
     }
 
     const topic = subjectTopics[index];
+    const topicId = stringPool.intern(topic);
 
     if (node.b._t === BranchType.Array) {
       for (const [t, child] of node.b.i) {
-        if (t === topic) {
-          search(child, index + 1);
+        if (t && child) {
+          if(t === gtId) {
+            results.push(child);
+          } else if (t === starId || t === topicId) {
+            _search(child, index + 1);
+          }
         }
-        if (t === "*") {
-          search(child, index + 1);
-        }
-        if (t === ">") {
-          search(child, index + 1);
-        } 
       }
     } else if (node.b._t === BranchType.Map) {
-      if (node.b.i.has(topic)) {
-        search(node.b.i.get(topic)! as ITrieMapNode<T>, index + 1);
+      if (node.b.i.has(topicId)) {
+        _search(node.b.i.get(topicId)!, index + 1);
       }
-      if (node.b.i.has("*")) {
-        search(node.b.i.get("*")!, index + 1);
+      if (node.b.i.has(starId)) {
+        _search(node.b.i.get(starId)!, index + 1);
       }
-      if (node.b.i.has(">")) {
-        search(node.b.i.get(">")!, index + 1);
-      } 
-    } else {
-      throw new TrieOperationError("Invalid branch type");
+      if (node.b.i.has(gtId)) {
+        results.push(node.b.i.get(gtId)!);
+      }
     }
   }
 
-  search(trie, 0);
+  _search(trie, 0);
   return results;
 }
 
@@ -420,25 +456,27 @@ function match<T>(trie: ITrieNode<T>, subjectTopics: string[]): ITrieNode<T>[] {
  *
  * @param trie the trie to lookup in
  * @param subjectTopics the subject topics to lookup
+ * @param stringPool the string pool to use for interning topic strings
  * @returns array of payloads that match the subject
  */
-function find<T>(trie: ITrieNode<T>, subjectTopics: string[]): ITrieNode<T> | undefined {
+function find<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool): ITrieNode<T> | undefined {
   function search(node: ITrieNode<T>, index: number): ITrieNode<T> | undefined {
-    if (index === subjectTopics.length || node.l) {
-      return node;
+    if (index === subjectTopics.length) {
+      return node.l ? node : undefined;
     }
 
     const topic = subjectTopics[index];
+    const topicId = stringPool.intern(topic);
 
     if (node.b._t === BranchType.Array) {
       for (const [t, child] of node.b.i) {
-        if (t === topic) {
+        if (t === topicId) {
           return search(child, index + 1);
         }
       }
     } else if (node.b._t === BranchType.Map) {
-      if (node.b.i.has(topic)) {
-        return search(node.b.i.get(topic)! as ITrieMapNode<T>, index + 1);
+      if (node.b.i.has(topicId)) {
+        return search(node.b.i.get(topicId)!, index + 1);
       }
     }
 
@@ -450,13 +488,13 @@ function find<T>(trie: ITrieNode<T>, subjectTopics: string[]): ITrieNode<T> | un
 
 // Unified branch operations
 const BranchOps = {
-  get<T>(branch: Branch<T>, key: string): ITrieNode<T> | undefined {
+  get<T>(branch: Branch<T>, key: number): ITrieNode<T> | undefined {
     return branch._t === BranchType.Array
       ? branch.i.find(([k]) => k === key)?.[1]
       : branch.i.get(key);
   },
   
-  set<T>(branch: Branch<T>, key: string, value: ITrieNode<T>): void {
+  set<T>(branch: Branch<T>, key: number, value: ITrieNode<T>): void {
     if (branch._t === BranchType.Array) {
       const index = branch.i.findIndex(([k]) => k === key);
       if (index >= 0) {
@@ -469,7 +507,7 @@ const BranchOps = {
     }
   },
 
-  has<T>(branch: Branch<T>, key: string): boolean {
+  has<T>(branch: Branch<T>, key: number): boolean {
     return branch._t === BranchType.Array
       ? branch.i.some(([k]) => k === key)
       : branch.i.has(key);
@@ -479,18 +517,19 @@ const BranchOps = {
     return branch._t === BranchType.Array ? branch.i.length : branch.i.size;
   },
 
-  entries<T>(branch: Branch<T>): IterableIterator<[string, ITrieNode<T>]> {
+  entries<T>(branch: Branch<T>): IterableIterator<[number, ITrieNode<T>]> {
     return branch._t === BranchType.Array
       ? branch.i[Symbol.iterator]()
       : branch.i.entries();
   }
 };
 
-function getOrCreateChild<T>(node: ITrieNode<T>, topic: string): ITrieNode<T> {
-  const existing = BranchOps.get(node.b, topic);
+function getOrCreateChild<T>(node: ITrieNode<T>, topic: string, stringPool: StringPool): ITrieNode<T> {
+  const topicId = stringPool.intern(topic);
+  const existing = BranchOps.get(node.b, topicId);
   if (existing) return existing;
 
-  const newNode = createTrie<T>({ topic });
-  BranchOps.set(node.b, topic, newNode);
+  const newNode = createTrie<T>({ topic, stringPool });
+  BranchOps.set(node.b, topicId, newNode);
   return newNode;
 }
