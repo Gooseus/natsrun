@@ -8,7 +8,7 @@
     "build": "tsc",
     "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
-    "test": "tsx --test"
+    "test": "tsx --expose-gc --test"
   },
   "keywords": [
     "typescript",

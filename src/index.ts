@@ -274,13 +274,13 @@ export class NatsRun {
   match(subject = ''): Handler[] {
     const matches = this.trie.match(subject);
     let flatMatches = matches.flat();
-    const unsortedPayloads = flatMatches.flatMap(({ payload }) => payload);
+    const unsortedPayloads = flatMatches.flatMap(({ p }) => p).filter((p): p is NatsHandlersPayload => p !== undefined);
     let sortedPayloads: NatsHandlersPayload[];
 
     switch (this.sortStrategy) { 
       case 'insertion':
         sortedPayloads = unsortedPayloads.sort((a, b) => {
-          return a.metadata._insertOrder - b.metadata._insertOrder;
+          return (a?.metadata._insertOrder ?? 0) - (b?.metadata._insertOrder ?? 0);
         });
         break;
       case 'custom':

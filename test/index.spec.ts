@@ -2,14 +2,21 @@ import assert from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 
 import { NatsRun, NatsSortFunction } from "../src/index.js";
+import { BranchType } from "../src/lib/natstrie/index.js";
 
 function traverseTrie(node, path: string[] = []) {
-  if (node.isLeaf) {
+  if (node.l) {
     return path;
   }
 
-  for (const [key, child] of node.branches.entries()) {
-    path = traverseTrie(child, [key as string, ...path]);
+  if (node.b._t === BranchType.Array) {
+    for (const [key, child] of node.b.i) {
+      path = traverseTrie(child, [key as string, ...path]);
+    }
+  } else {
+    for (const [key, child] of node.b.i.entries()) {
+      path = traverseTrie(child, [key as string, ...path]);
+    }
   }
 
   return path;
@@ -558,7 +565,7 @@ describe("NatsRun", () => {
     });
 
     describe("Pattern Specificity", () => {
-      it("matches most specific pattern first", async () => {
+      it("matches more specific pattern first", async () => {
         router = new NatsRun({ sortStrategy: 'specificity' });
 
         router.add("test.>", testHandler("wildcard", results));
@@ -567,6 +574,17 @@ describe("NatsRun", () => {
 
         await router.handle("test.specific.end", toUint8Array("test"));
         assert.deepStrictEqual(results, ["middle test", "wildcard test"]);
+      });
+
+      it("matches most specific pattern first", async () => {
+        router = new NatsRun({ sortStrategy: 'specificity' });
+
+        router.add("test.a.>", testHandler("a >", results));
+        router.add("test.b.>", testHandler("b >", results));
+        router.add("test.*.specific", testHandler("* specific", results));
+
+        await router.handle("test.a.specific", toUint8Array("test"));
+        assert.deepStrictEqual(results, ["* specific test", "a > test"]);
       });
 
       it("handles overlapping patterns correctly", async () => {
@@ -680,6 +698,40 @@ describe("NatsRun", () => {
       });
     });
 
+    describe("Next Function Edge Cases", () => {
+      it("handles multiple next() calls gracefully", async () => {
+        let callCount = 0;
+        router.add("test.next", [
+          async (msg, ctx, next) => {
+            await next();
+            await next(); // Should be ignored or error
+            callCount++;
+          },
+          async (msg, ctx) => {
+            callCount++;
+          }
+        ]);
+        await router.handle("test.next", "test");
+        assert.strictEqual(callCount, 2, "Should only execute handlers once");
+      });
+    
+      it("preserves context through next() chain", async () => {
+        const results: any[] = [];
+        router.add("test.chain", [
+          async (msg, ctx, next) => {
+            ctx.first = true;
+            await next({ modified: true });
+          },
+          async (msg, ctx, next) => {
+            results.push([ctx.first, ctx.modified]);
+            await next();
+          }
+        ]);
+        await router.handle("test.chain", "test");
+        assert.deepStrictEqual(results, [[true, true]]);
+      });
+    });
+
     describe("Combined Context and Next", () => {
       it("allows both state sharing and flow control", async () => {
         router.add("test.combined", [
@@ -715,12 +767,38 @@ describe("NatsRun", () => {
       });
     });
 
+    describe("Run-specific Context", () => {
+      it("maintains separate contexts for different runs", async () => {
+        const results: any[] = [];
+        router.add("test.a.specific", async (msg, ctx, next) => {
+          ctx.pattern = "a";
+          await next();
+        });
+        router.add("test.b.specific", async (msg, ctx, next) => {
+          ctx.pattern = "b";
+          await next();
+        });
+        router.add("test.*.specific", async (msg, ctx, next) => {
+          results.push(ctx.pattern);
+          await next();
+        });
+    
+        const ctx1 = await router.handle("test.a.specific", "test");
+        const ctx2 = await router.handle("test.b.specific", "test");
+        assert.deepStrictEqual(results, ["a", "b"]);
+        assert.deepStrictEqual(ctx1, { pattern: "a" });
+        assert.deepStrictEqual(ctx2, { pattern: "b" });
+      });
+    });
+
     describe("Context Initialization", () => {
       it("provides a default empty context if none supplied", async () => {
         router.add("test.context", async (msg, ctx) => {
           assert.deepStrictEqual(ctx, {}, "Context should be initialized as empty object");
         });
-        await router.handle("test.context", "test");
+        const ctx = await router.handle("test.context", "test");
+
+        assert.deepStrictEqual(ctx, {}, "Context should be returned from the handle")
       });
 
       it("preserves supplied context properties", async () => {
@@ -728,8 +806,139 @@ describe("NatsRun", () => {
         router.add("test.context", async (msg, ctx) => {
           assert.strictEqual(ctx.custom, "value", "Should preserve initial context values");
         });
-        await router.handle("test.context", "test", initialCtx);
+        const ctx = await router.handle("test.context", "test", initialCtx); 
+
+        assert.deepStrictEqual(ctx, initialCtx, "Should return the same context unchanged from the handle");
+      });
+    });
+
+    describe("Async Flow Control", () => {
+      it("maintains order with async operations", async () => {
+        const results: any[] = [];
+        router.add("test.async", [
+          async (msg, ctx, next) => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            results.push(1);
+            await next();
+          },
+          async (msg, ctx, next) => {
+            await new Promise(resolve => setTimeout(resolve, 10));
+            results.push(2);
+            await next();
+          },
+          async () => {
+            results.push(3);
+          }
+        ]);
+        await router.handle("test.async", "test");
+        assert.deepStrictEqual(results, [1, 2, 3]);
       });
     });
   });
+
+  describe("Resource Management", () => {
+    let router: NatsRun;
+
+    beforeEach(() => {
+      router = new NatsRun();
+    });
+
+    it("shows linear or better memory growth with increasing patterns", async () => {
+      const measurements: Array<{n: number, memory: number}> = [];
+      const samples = [1024, 2048, 4096, 8192, 8192, 16384, 32768, 65536];  // Test points
+      
+      // Take measurements at different N
+      for (const n of samples) {
+        // Force GC if available (Node --expose-gc required)
+        if (global.gc) {
+          global.gc();
+        }
+        
+        const beforeMem = process.memoryUsage().rss;
+        
+        for (let i = 0; i < n; i++) {
+          router.add(`test.${i}.pattern`, async () => {});
+        }
+        
+        const afterMem = process.memoryUsage().rss;
+        measurements.push({
+          n,
+          memory: (afterMem - beforeMem) / 1024 / 1024 // MB
+        });
+      }
+
+      // Calculate growth ratios between consecutive measurements
+      const growthRatios = measurements.slice(1).map((m, i) => ({
+        n1: measurements[i].n,
+        n2: m.n,
+        ratio: m.memory / measurements[i].memory,
+        expected: m.n / measurements[i].n
+      }));
+
+      console.log('Memory measurements:', measurements);
+      console.log('Growth ratios:', growthRatios);
+
+      // Verify growth is roughly linear or better
+      // If memory growth ratio is consistently less than or equal to N ratio, we're good
+      growthRatios.forEach(({ ratio, expected }) => {
+        assert(ratio <= expected * 1.2, // Allow 20% overhead for variability
+          `Memory growth ratio (${ratio.toFixed(2)}) should not significantly exceed ` +
+          `the input size ratio (${expected.toFixed(2)})`);
+      });
+    });
+
+    it("maintains reasonable memory per pattern", async () => {
+      const n = 1000; // Smaller sample for average calculation
+      const threshold = 1024; // 1KB per pattern as an example threshold
+      
+      if (global.gc) {
+        global.gc();
+      }
+      
+      const beforeMem = process.memoryUsage().heapUsed;
+      
+      for (let i = 0; i < n; i++) {
+        router.add(`test.${i}.pattern`, async () => {});
+      }
+      
+      const afterMem = process.memoryUsage().heapUsed;
+      const memoryPerPattern = (afterMem - beforeMem) / n;
+      
+      console.log(`Average memory per pattern: ${memoryPerPattern.toFixed(2)} bytes`);
+      
+      // This threshold would need tuning based on your specific implementation
+      assert(memoryPerPattern < threshold,
+        `Memory per pattern (${memoryPerPattern.toFixed(2)} bytes) exceeds reasonable threshold (${threshold} bytes)`);
+    });
+
+    it("profiles memory usage by component", async () => {
+      const n = 1000;
+      const patterns = Array.from({length: n}, (_, i) => `test.${i}.pattern`);
+      const handler = async () => {};
+      
+      // Measure base memory
+      const baseline = process.memoryUsage().heapUsed;
+      
+      // Measure just patterns
+      const patternStrings = new Set(patterns);
+      const patternMem = process.memoryUsage().heapUsed - baseline;
+      
+      // Measure trie structure
+      const router = new NatsRun();
+      router.add(patterns[0], handler);
+      const singleNodeMem = process.memoryUsage().heapUsed - baseline - patternMem;
+      
+      // Measure full structure
+      for (const pattern of patterns.slice(1)) {
+        router.add(pattern, handler);
+      }
+      const totalMem = process.memoryUsage().heapUsed - baseline;
+      
+      console.log({
+        patternOverhead: patternMem / n,
+        nodeOverhead: singleNodeMem,
+        totalPerPattern: totalMem / n
+      });
+    });
+  });  
 });
