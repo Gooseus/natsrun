@@ -9,7 +9,7 @@ export class StringPool {
   constructor(initialStrings: string[] = []) {
     this.pool = new Map();
     this.strings = [];
-    this.nextId = 1;
+    this.nextId = 0;
 
     // Initialize with provided strings
     for (const str of initialStrings) {

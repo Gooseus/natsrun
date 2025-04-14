@@ -175,7 +175,7 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param node Optional initial trie node to use
    */
   constructor(node?: ITrieNode<T>) {
-    this.stringPool = new StringPool(['*', '>']);
+    this.stringPool = new StringPool(['>', '*']);
     this.trieRoot = node ?? createTrie({ stringPool: this.stringPool });
   }
 
@@ -400,7 +400,7 @@ function match<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: Strin
 
     if (node.b._t === BranchType.Array) {
       for (const [t, child] of node.b.i) {
-        if (t && child) {
+        if (t !== undefined && child) {
           if(t === gtId) {
             results.push(child);
           } else if (t === starId || t === topicId) {
