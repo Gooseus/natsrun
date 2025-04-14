@@ -124,4 +124,64 @@ describe('NatsTrie', () => {
       });
     });
   });
+
+  describe('String Pool Integration', () => {
+    beforeEach(() => {
+      trie = new NatsTrie();
+    });
+
+    it('uses string pool for topic strings', () => {
+      trie.insert('test.topic', 'payload1');
+      trie.insert('test.topic', 'payload2'); // Same topic string should reuse ID
+      
+      const result = trie.search('test.topic');
+      assert.deepEqual(result?.p, ['payload1', 'payload2']);
+    });
+
+    it('handles string pool IDs correctly', () => {
+      const topic = 'test.topic';
+      const id = trie.getTopicId(topic);
+      const str = trie.getTopicString(id);
+      
+      assert.strictEqual(str, topic);
+    });
+  });
+
+  describe('Array to Map Threshold', () => {
+    it('respects custom threshold', () => {
+      const customThreshold = 16;
+      trie = new NatsTrie();
+      trie.arrayToMapThreshold = customThreshold;
+      
+      // Insert just below threshold
+      for (let i = 0; i < customThreshold; i++) {
+        trie.insert(`${i}`, 'payload', true);
+      }
+      assert.strictEqual(trie.trieRoot.b._t, BranchType.Array);
+      
+      // Insert one more to trigger conversion
+      trie.insert(`${customThreshold}`, 'payload', true);
+      assert.strictEqual(trie.trieRoot.b._t, BranchType.Map);
+    });
+  });
+
+  describe('Trie Traversal', () => {
+    beforeEach(() => {
+      trie = new NatsTrie();
+      trie.insert('test.1', 'payload1');
+      trie.insert('test.2', 'payload2');
+      trie.insert('test.3', 'payload3');
+    });
+
+    it('traverses all nodes', () => {
+      const nodes = trie.traverse(trie.trieRoot);
+      assert.strictEqual(nodes.length, 5); // Root + test branch + 3 leaf nodes
+    });
+
+    it('includes all nodes with payloads', () => {
+      const nodes = trie.traverse(trie.trieRoot);
+      const payloadNodes = nodes.filter(n => n.p !== undefined && Array.isArray(n.p) ? n.p.length > 0 : n.p !== undefined);
+      assert.strictEqual(payloadNodes.length, 3);
+    });
+  });
 });

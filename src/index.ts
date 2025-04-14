@@ -271,8 +271,8 @@ export class NatsRun {
    * // Returns handlers matching 'user.123.updated', 'user.*.updated', etc.
    * ```
    */
-  match(subject = '', debug: boolean = false): Handler[] {
-    const matches = this.trie.match(subject, debug);
+  match(subject = ''): Handler[] {
+    const matches = this.trie.match(subject);
     let flatMatches = matches.flat();
     const unsortedPayloads = flatMatches.flatMap(({ p }) => p).filter((p): p is NatsHandlersPayload => p !== undefined);
     let sortedPayloads: NatsHandlersPayload[];

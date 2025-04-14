@@ -162,22 +162,21 @@ export class TrieOperationError extends Error {
  * @typeParam T - The type of payload stored in the trie nodes
  */
 export class NatsTrie<T> implements INatsTrie<T> {
+  /** The string pool for interning topic strings */
+  private stringPool: StringPool;
   /** The root node of the trie */
   trieRoot: ITrieNode<T>;
   /** The threshold for converting an array of [topic, node] tuples to a map */
-  arrayToMapThreshold: number;
-  /** The string pool for interning topic strings */
-  private stringPool: StringPool;
+  arrayToMapThreshold: number = DEFAULT_ARRAY_TO_MAP_THRESHOLD;
 
   /**
    * Create a new NatsTrie instance
    *
    * @param node Optional initial trie node to use
    */
-  constructor(node?: ITrieNode<T>, opts: { arrayToMapThreshold?: number } = {}) {
+  constructor(node?: ITrieNode<T>) {
     this.stringPool = new StringPool(['*', '>']);
     this.trieRoot = node ?? createTrie({ stringPool: this.stringPool });
-    this.arrayToMapThreshold = opts.arrayToMapThreshold ?? DEFAULT_ARRAY_TO_MAP_THRESHOLD;
   }
 
   /**
@@ -208,7 +207,7 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param subject a defined subject to insert under
    * @param payload a defined payload to insert
    */
-  insert(subject: string, payload: T | T[]): void {
+  insert(subject: string, payload: T | T[], debug = false): void {
     if (!subject) throw new InvalidSubjectError(subject, "must be defined");
     if (!payload || (Array.isArray(payload) && payload.some((p) => !p))) throw new InvalidPayloadError("must be defined");
 
@@ -217,7 +216,7 @@ export class NatsTrie<T> implements INatsTrie<T> {
     if (topics.some((topic) => topic === "")) throw new InvalidSubjectError(subject, "cannot contain empty topics");
     if (topics.indexOf(">") !== -1 && topics.indexOf(">") !== topics.length - 1) throw new InvalidSubjectError(subject, '">" must be the last topic');
 
-    insert(this.trieRoot, topics, payload, this.stringPool);
+    insert(this.trieRoot, topics, payload, this.stringPool, this.arrayToMapThreshold, debug);
   }
 
   /**
@@ -226,18 +225,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param subject the subject to lookup
    * @returns the array of payloads that match the subject
    */
-  match(subject: string, debug: boolean = false): ITrieNode<T>[] {
-    return match(this.trieRoot, subject.split("."), this.stringPool, debug);
-  }
-
-  /**
-   * Find a subject in the trie
-   *
-   * @param subject the subject to find
-   * @returns the node that matches the subject
-   */
-  find(subject: string): ITrieNode<T> | undefined {
-    return find(this.trieRoot, subject.split("."), this.stringPool);
+  match(subject: string): ITrieNode<T>[] {
+    return match(this.trieRoot, subject.split("."), this.stringPool);
   }
 
   /**
@@ -246,8 +235,8 @@ export class NatsTrie<T> implements INatsTrie<T> {
    * @param subject the subject to search for
    * @returns the node that matches the subject
    */
-  search(subject: string, debug: boolean = false): ITrieNode<T> | undefined {
-    return search(this.trieRoot, subject.split("."), this.stringPool, 0, debug);
+  search(subject: string): ITrieNode<T> | undefined {
+    return search(this.trieRoot, subject.split("."), this.stringPool);
   }
 
   /**
@@ -294,7 +283,7 @@ function createTrie<T>({ isLeaf = false, topic = "", stringPool }: TTrieOpts & {
  * @param payload the payload to insert
  * @param stringPool the string pool to use for interning topic strings
  */
-function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[], stringPool: StringPool): void {
+function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[], stringPool: StringPool, arrayToMapThreshold: number = DEFAULT_ARRAY_TO_MAP_THRESHOLD, debug: boolean = false): void {
   let currentNode = trie;
   const lastIndex = subjectTopics.length - 1;
 
@@ -306,20 +295,20 @@ function insert<T>(trie: ITrieNode<T>, subjectTopics: string[], payload: T | T[]
     if (isLast) {
       let child = BranchOps.get(currentNode.b, topicId);
       if (!child) {
-        if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
+        child = createTrie({ topic, isLeaf: true, stringPool });
+        if (BranchOps.size(currentNode.b) >= arrayToMapThreshold) {
           currentNode = convertToMap(currentNode);
         }
-        child = createTrie({ topic, isLeaf: true, stringPool });
         BranchOps.set(currentNode.b, topicId, child);
       }
       currentNode = child;
     } else {
       let child = BranchOps.get(currentNode.b, topicId);
       if (!child) {
-        if (BranchOps.size(currentNode.b) >= DEFAULT_ARRAY_TO_MAP_THRESHOLD) {
+        child = createTrie({ topic, stringPool });
+        if (BranchOps.size(currentNode.b) >= arrayToMapThreshold) {
           currentNode = convertToMap(currentNode);
         }
-        child = createTrie({ topic, stringPool });
         BranchOps.set(currentNode.b, topicId, child);
       }
       currentNode = child;
@@ -356,8 +345,7 @@ function convertToMap<T>(node: ITrieNode<T>): ITrieNode<T> {
   return node;
 }
 
-function search<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool, depth: number = 0, debug: boolean = false): ITrieNode<T> | undefined {
-  if (debug) console.log("search 1", trie, subjectTopics, depth);
+function search<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool, depth: number = 0): ITrieNode<T> | undefined {
   if (depth === subjectTopics.length) {
     if (trie.l || trie.t === stringPool.intern(">")) {
       return trie;
@@ -372,27 +360,21 @@ function search<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: Stri
   const starId = stringPool.intern("*");
   const gtId = stringPool.intern(">");
 
-  if (debug) console.log("search 2", topic, topicId, starId, gtId);
-
   // Check exact match
   const exactMatch = BranchOps.get(trie.b, topicId);
-  if (debug) console.log("search 3 exactMatch", exactMatch);
   if (exactMatch) {
-    const result = search(exactMatch, subjectTopics, stringPool, depth + 1, debug);
+    const result = search(exactMatch, subjectTopics, stringPool, depth + 1);
     if (result) return result;
   }
 
   // Check wildcards
   const starMatch = BranchOps.get(trie.b, starId);
-  if (debug) console.log("search 3 starMatch", starMatch);
   if (starMatch) {
-    const result = search(starMatch, subjectTopics, stringPool, depth + 1, debug);
+    const result = search(starMatch, subjectTopics, stringPool, depth + 1);
     if (result) return result;
   }
 
-  // Check greater-than
   const gtMatch = BranchOps.get(trie.b, gtId);
-  if (debug) console.log("search 3 gtMatch", gtMatch);
   if (gtMatch) {
     return gtMatch;
   }
@@ -400,19 +382,11 @@ function search<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: Stri
   return undefined;
 }
 
-/**
- * Lookup a subject in the trie
- *
- * @param trie the trie to lookup in
- * @param subjectTopics the subject topics to lookup
- * @param stringPool the string pool to use for interning topic strings
- * @returns array of payloads that match the subject
- */
-function match<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool, debug: boolean = false): ITrieNode<T>[] {
+function match<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool): ITrieNode<T>[] {
   let results: ITrieNode<T>[] = [];
   const starId = stringPool.intern("*");
   const gtId = stringPool.intern(">");
-  
+
   function _search(node: ITrieNode<T>, index: number): void {
     if (index === subjectTopics.length) {
       if (node.l || node.t === gtId) {
@@ -449,41 +423,6 @@ function match<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: Strin
 
   _search(trie, 0);
   return results;
-}
-
-/**
- * Lookup a subject in the trie
- *
- * @param trie the trie to lookup in
- * @param subjectTopics the subject topics to lookup
- * @param stringPool the string pool to use for interning topic strings
- * @returns array of payloads that match the subject
- */
-function find<T>(trie: ITrieNode<T>, subjectTopics: string[], stringPool: StringPool): ITrieNode<T> | undefined {
-  function search(node: ITrieNode<T>, index: number): ITrieNode<T> | undefined {
-    if (index === subjectTopics.length) {
-      return node.l ? node : undefined;
-    }
-
-    const topic = subjectTopics[index];
-    const topicId = stringPool.intern(topic);
-
-    if (node.b._t === BranchType.Array) {
-      for (const [t, child] of node.b.i) {
-        if (t === topicId) {
-          return search(child, index + 1);
-        }
-      }
-    } else if (node.b._t === BranchType.Map) {
-      if (node.b.i.has(topicId)) {
-        return search(node.b.i.get(topicId)!, index + 1);
-      }
-    }
-
-    return undefined;
-  }
-
-  return search(trie, 0);
 }
 
 // Unified branch operations
@@ -523,13 +462,3 @@ const BranchOps = {
       : branch.i.entries();
   }
 };
-
-function getOrCreateChild<T>(node: ITrieNode<T>, topic: string, stringPool: StringPool): ITrieNode<T> {
-  const topicId = stringPool.intern(topic);
-  const existing = BranchOps.get(node.b, topicId);
-  if (existing) return existing;
-
-  const newNode = createTrie<T>({ topic, stringPool });
-  BranchOps.set(node.b, topicId, newNode);
-  return newNode;
-}
