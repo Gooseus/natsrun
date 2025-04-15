@@ -91,7 +91,7 @@ describe('NatsTrie', () => {
         }
 
         const root = trie.trieRoot;
-        assert.strictEqual(root.b._t, BranchType.Map);
+        assert.strictEqual(root.b?._t, BranchType.Map);
       });
 
       it('maintains correct data after conversion', () => {
@@ -155,13 +155,13 @@ describe('NatsTrie', () => {
       
       // Insert just below threshold
       for (let i = 0; i < customThreshold; i++) {
-        trie.insert(`${i}`, 'payload', true);
+        trie.insert(`${i}`, 'payload');
       }
-      assert.strictEqual(trie.trieRoot.b._t, BranchType.Array);
+      assert.strictEqual(trie.trieRoot.b?._t, BranchType.Array);
       
       // Insert one more to trigger conversion
-      trie.insert(`${customThreshold}`, 'payload', true);
-      assert.strictEqual(trie.trieRoot.b._t, BranchType.Map);
+      trie.insert(`${customThreshold}`, 'payload');
+      assert.strictEqual(trie.trieRoot.b?._t, BranchType.Map);
     });
   });
 

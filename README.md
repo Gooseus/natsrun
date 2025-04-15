@@ -1,7 +1,9 @@
 # NATSrun
 
-> [!CAUTION]
-> This is a WIP and not yet published to NPM
+[![npm version](https://img.shields.io/npm/v/natsrun.svg)](https://www.npmjs.com/package/natsrun)
+[![CI/CD](https://github.com/Gooseus/natsrun/actions/workflows/ci.yml/badge.svg)](https://github.com/Gooseus/natsrun/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
 
 ## Introduction
 
@@ -103,6 +105,7 @@ constructor(opts?: {
 
 - `match(subject: string): Handler[]`
   - Returns all handlers that match the given subject
+  
   - Handlers are sorted according to the configured strategy
 
 - `handle(subject: string, message: any): Promise<void>`
@@ -141,7 +144,11 @@ http-server docs
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
 
 ## License
 
@@ -151,11 +158,3 @@ MIT
 
 - Inspired by [bloomrun](https://github.com/mcollina/bloomrun) and [patrun](https://github.com/rjrodger/patrun)
 - Pattern matchers used by [Hemera](https://github.com/hemerajs/hemera) and [Seneca](https://github.com/senecajs/seneca)
-
-# TODO
-
-- [ ] Add examples and use cases
-- [ ] More configurations for the run (exectution order, async)  
-- [ ] Tests for different configurations
-- [ ] Github actions
-- [ ] Publish

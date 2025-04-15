@@ -1,6 +1,8 @@
 import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { StringPool } from '../../src/lib/natstrie/string-pool.js';
+import { StringPool } from '../../src/lib/string-pool/index.js';
+
+const DEBUG = false;
 
 describe('StringPool', () => {
   let pool: StringPool;
@@ -29,8 +31,7 @@ describe('StringPool', () => {
     });
 
     it('should handle empty strings', () => {
-      const id = pool.intern('');
-      assert.strictEqual(pool.getString(id), '', 'Should handle empty string');
+      assert.throws(() => pool.intern(''), 'Should throw on empty string');
     });
   });
 
@@ -115,7 +116,7 @@ describe('StringPool', () => {
       const end = process.hrtime.bigint();
       const duration = Number(end - start) / 1e6; // Convert to milliseconds
       
-      console.log(`Interning ${count} strings took ${duration.toFixed(2)}ms`);
+      DEBUG && console.log(`Interning ${count} strings took ${duration.toFixed(2)}ms`);
       assert(duration < 1000, 'Should complete within reasonable time');
     });
 
@@ -131,7 +132,7 @@ describe('StringPool', () => {
       const end = process.hrtime.bigint();
       const duration = Number(end - start) / 1e6; // Convert to milliseconds
       
-      console.log(`Interning ${count} repeated patterns took ${duration.toFixed(2)}ms`);
+      DEBUG && console.log(`Interning ${count} repeated patterns took ${duration.toFixed(2)}ms`);
       assert(duration < 1000, 'Should complete within reasonable time');
     });
   });

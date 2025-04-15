@@ -6,15 +6,10 @@ export class StringPool {
   private strings: string[];
   private nextId: number;
 
-  constructor(initialStrings: string[] = []) {
+  constructor() {
     this.pool = new Map();
     this.strings = [];
-    this.nextId = 0;
-
-    // Initialize with provided strings
-    for (const str of initialStrings) {
-      this.intern(str);
-    }
+    this.nextId = 2;
   }
 
   /**
@@ -23,6 +18,11 @@ export class StringPool {
    * @returns The ID of the string in the pool
    */
   intern(str: string): number {
+    if (str === "") {
+      throw new Error('StringPool does not support empty strings');
+    }
+    if (str === ">") return 0;
+    if (str === "*") return 1;
     if (typeof str !== 'string') {
       throw new Error('StringPool only supports string inputs');
     }
@@ -44,6 +44,8 @@ export class StringPool {
    * @returns The string associated with the ID
    */
   getString(id: number): string {
+    if (id == 0) return ">";
+    if (id == 1) return "*";
     if (id < 0 || id >= this.strings.length) {
       throw new Error('Invalid string ID');
     }
