@@ -31,6 +31,7 @@ Prefer pull requests in this order:
 ### Recommendations
 - Write failing tests with empty implemtations and commit those first
 - Prefer shorter functions with pure state and dependency injection for easier testing
+- Use sensible and descriptive commit messages.
 - Review your PR after submitting to add context to the file/code changes
 
 ### Code Style
