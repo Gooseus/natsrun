@@ -1,5 +1,25 @@
 import { ITrieNode, NatsTrie, InvalidSubjectError, InvalidPayloadError } from "./lib/natstrie/index.js";
 
+export declare const Match: {
+  readonly Exact: "exact";
+  readonly CanonicalMIME: "canonical";
+  readonly IgnoreCase: "insensitive";
+};
+export type Match = typeof Match[keyof typeof Match];
+export interface MsgHdrs extends Iterable<[string, string[]]> {
+  hasError: boolean;
+  status: string;
+  code: number;
+  description: string;
+  get(k: string, match?: Match): string;
+  set(k: string, v: string, match?: Match): void;
+  append(k: string, v: string, match?: Match): void;
+  has(k: string, match?: Match): boolean;
+  keys(): string[];
+  values(k: string, match?: Match): string[];
+  delete(k: string, match?: Match): void;
+  last(k: string, match?: Match): string;
+}
 
 /**
  * A message object that contains the subject, data, and specific headers of a NATS message.
@@ -7,6 +27,7 @@ import { ITrieNode, NatsTrie, InvalidSubjectError, InvalidPayloadError } from ".
 export type NatsMsg = {
   subject: string;
   data: any;
+  headers: MsgHdrs;
 }
 
 /**
@@ -311,7 +332,7 @@ export class NatsRun {
    * });
    * ```
    */
-  async handle(subject: string, message: any, ctx: NatsContext = {}): Promise<NatsContext> {
+  async handle(subject: string, message: any, ctx: NatsContext = {}, headers: MsgHdrs = {} as MsgHdrs): Promise<NatsContext> {
     const matches = this.match(subject);
     let handler: Handler | undefined = matches.shift();
     if (!handler) return ctx;
@@ -320,9 +341,9 @@ export class NatsRun {
       ctx = { ...ctx, ...(await this.objectifyData(data, ctx)) };
       const nhandler = matches.shift();
       if (!nhandler) return ctx;
-      return nhandler({ subject, data: message }, ctx, next) ?? ctx;
+      return nhandler({ subject, data: message, headers }, ctx, next) ?? ctx;
     };
 
-    return await handler({ subject, data: message }, ctx, next) ?? ctx;
+    return await handler({ subject, data: message, headers }, ctx, next) ?? ctx;
   }
 }
