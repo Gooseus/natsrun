@@ -1,7 +1,7 @@
 # NATSrun
 
 [![npm version](https://img.shields.io/npm/v/@gooseus/natsrun.svg)](https://www.npmjs.com/package/@gooseus/natsrun)
-[![CI/CD](https://github.com/Gooseus/natsrun/actions/workflows/ci.yml/badge.svg)](https://github.com/Gooseus/natsrun/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/Gooseus/natsrun/actions/workflows/test-build.yml/badge.svg)](https://github.com/Gooseus/natsrun/actions/workflows/test-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
 
