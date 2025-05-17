@@ -25,7 +25,9 @@
     "build": "tsc",
     "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
-    "test": "tsx --expose-gc --test"
+    "test": "tsx --expose-gc --test",
+    "release": "release-please",
+    "prepare": "husky install"
   },
   "keywords": [
     "typescript",
@@ -38,7 +40,12 @@
     "seneca"
   ],
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@types/node": "^22.8.0",
+    "husky": "^9.1.7",
+    "release-please": "^17.0.0",
+    "standard-version": "^9.5.0",
     "tsx": "^4.19.3",
     "typedoc": "^0.26.10",
     "typescript": "^5.6.3"
