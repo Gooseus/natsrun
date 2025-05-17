@@ -1,6 +1,6 @@
 {
   "name": "@gooseus/natsrun",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "author": "Shawn Marincas <shawn@goose.us> (https://goose.us)",
   "description": "Application message router using NATS subject pattern-matching.",
   "license": "MIT",
