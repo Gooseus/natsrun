@@ -26,8 +26,7 @@
     "build:browser": "tsc -p tsconfig.browser.json",
     "build:docs": "typedoc --out docs src",
     "test": "tsx --expose-gc --test",
-    "release": "release-please",
-    "prepare": "husky install"
+    "release": "release-please"
   },
   "keywords": [
     "typescript",
@@ -43,11 +42,14 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@types/node": "^22.8.0",
-    "husky": "^9.1.7",
     "release-please": "^17.0.0",
+    "simple-git-hooks": "^2.13.0",
     "standard-version": "^9.5.0",
     "tsx": "^4.19.3",
     "typedoc": "^0.26.10",
     "typescript": "^5.6.3"
+  },
+  "simple-git-hooks": {
+    "commit-msg": "npx --no -- commitlint --edit ${1}"
   }
 }
