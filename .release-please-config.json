@@ -11,6 +11,6 @@
       "include-v-in-tag": true
     }
   },
-  "last-release-sha": "4c376b26e4bdeec07c7dcad2513323a83215a2fe",
+  "last-release-sha": "1795f8bb57dbdaadb37341444f27df20039a2b28",
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
 }
