@@ -1,23 +1,86 @@
 import { ITrieNode, NatsTrie, InvalidSubjectError, InvalidPayloadError } from "./lib/natstrie/index.js";
 
+/**
+ * Match type constants for header operations
+ */
 export declare const Match: {
+  /** Exact match */
   readonly Exact: "exact";
+  /** Canonical MIME match */
   readonly CanonicalMIME: "canonical";
+  /** Case-insensitive match */
   readonly IgnoreCase: "insensitive";
 };
+
+/**
+ * Type representing the different match strategies for header operations
+ */
 export type Match = typeof Match[keyof typeof Match];
+
+/**
+ * Interface for NATS message headers
+ */
 export interface MsgHdrs extends Iterable<[string, string[]]> {
+  /** Whether the headers contain an error */
   hasError: boolean;
+  /** Status string */
   status: string;
+  /** Status code */
   code: number;
+  /** Error description */
   description: string;
+  /**
+   * Get a header value
+   * @param k - The header key
+   * @param match - The match type
+   * @returns The header value
+   */
   get(k: string, match?: Match): string;
+  /**
+   * Set a header value
+   * @param k - The header key
+   * @param v - The header value
+   * @param match - The match type
+   */
   set(k: string, v: string, match?: Match): void;
+  /**
+   * Append a value to a header
+   * @param k - The header key
+   * @param v - The header value
+   * @param match - The match type
+   */
   append(k: string, v: string, match?: Match): void;
+  /**
+   * Check if a header exists
+   * @param k - The header key
+   * @param match - The match type
+   * @returns Whether the header exists
+   */
   has(k: string, match?: Match): boolean;
+  /**
+   * Get all header keys
+   * @returns Array of header keys
+   */
   keys(): string[];
+  /**
+   * Get all values for a header
+   * @param k - The header key
+   * @param match - The match type
+   * @returns Array of header values
+   */
   values(k: string, match?: Match): string[];
+  /**
+   * Delete a header
+   * @param k - The header key
+   * @param match - The match type
+   */
   delete(k: string, match?: Match): void;
+  /**
+   * Get the last value for a header
+   * @param k - The header key
+   * @param match - The match type
+   * @returns The last header value
+   */
   last(k: string, match?: Match): string;
 }
 
@@ -25,8 +88,11 @@ export interface MsgHdrs extends Iterable<[string, string[]]> {
  * A message object that contains the subject, data, and specific headers of a NATS message.
  */
 export type NatsMsg = {
+  /** The subject of the message */
   subject: string;
+  /** The data payload of the message */
   data: any;
+  /** The headers of the message */
   headers: MsgHdrs;
 }
 
@@ -40,7 +106,7 @@ export type NatsContext = Record<string, any>;
  * @param data - The data to pass to the next handler
  * @returns The context object that contains the state and other information for next handler
  */
-type NatsNext = (data?: any) => Promise<NatsContext | void>;
+export type NatsNext = (data?: any) => Promise<NatsContext | void>;
 
 /**
  * A handler function that processes NATS messages.
@@ -52,16 +118,19 @@ type NatsNext = (data?: any) => Promise<NatsContext | void>;
 export type Handler = (msg: NatsMsg, ctx: NatsContext, next: NatsNext) => Promise<NatsContext | void>;
 
 /**
- * A type that represents the allowd metadata values for a handler
+ * A type that represents the allowed metadata values for a handler
  */
-type NatsMetadataValue = string | number | boolean | null;
+export type NatsMetadataValue = string | number | boolean | null;
 
 /**
- * A type that represents the metadata for a handler
+ * A type that represents the internal metadata for a handler
  */
-type NatsInternalMetadata = {
+export type NatsInternalMetadata = {
+  /** Order in which this handler was inserted */
   _insertOrder: number;
+  /** Original pattern string used for this handler */
   _pattern: string;
+  /** Last data value passed to or from this handler */
   _lastData: NatsMetadataValue;
 }
 
@@ -69,7 +138,9 @@ type NatsInternalMetadata = {
  * A payload object that contains the handlers and metadata for handling NATS messages
  */
 export type NatsHandlersPayload = {
+  /** Array of handler functions */
   handlers: Handler[];
+  /** Metadata for the handlers */
   metadata: Record<string, NatsMetadataValue> & NatsInternalMetadata;
 }
 
@@ -180,6 +251,12 @@ export class NatsRun {
     this.customSort = opts.customSort;
   }
 
+  /**
+   * Wraps a handler function in a NatsHandlersPayload
+   * @param handler - The handler function to wrap
+   * @returns The wrapped handler as a NatsHandlersPayload
+   * @internal
+   */
   private wrapHandler(handler: Handler): NatsHandlersPayload {
     return {
       handlers: [handler],
@@ -187,6 +264,13 @@ export class NatsRun {
     };
   }
   
+  /**
+   * Adds metadata to a NatsHandlersPayload
+   * @param payload - The payload to add metadata to
+   * @param metadata - The metadata to add
+   * @returns The payload with the added metadata
+   * @internal
+   */
   private addPayloadMetadata(payload: NatsHandlersPayload, ...metadata: Record<string, NatsMetadataValue>[]): NatsHandlersPayload {
     return {
       ...payload,
@@ -194,10 +278,23 @@ export class NatsRun {
     };
   }
 
+  /**
+   * Checks if a value is a NatsHandlersPayload
+   * @param handle - The value to check
+   * @returns Whether the value is a NatsHandlersPayload
+   * @internal
+   */
   private isHandlersPayload(handle: NatsHandlersPayload | Handler): handle is NatsHandlersPayload {
     return typeof handle === 'object' && handle !== null && 'handlers' in handle && Array.isArray(handle.handlers) && handle.handlers.every((h) => typeof h === 'function');
   }
 
+  /**
+   * Converts data to an object for the context
+   * @param data - The data to convert
+   * @param ctx - The current context
+   * @returns The data as an object
+   * @internal
+   */
   private async objectifyData(data: any, ctx: NatsContext): Promise<NatsContext> {
     if (typeof data === 'function') {
       data = await data(ctx);
@@ -271,6 +368,12 @@ export class NatsRun {
     }
   }
 
+  /**
+   * Calculates the specificity of a pattern
+   * @param pattern - The pattern to calculate specificity for
+   * @returns The specificity value
+   * @internal
+   */
   private calculateSpecificity(pattern: string): number {
     const topics = pattern.split('.');
     return topics.reduce((acc, topic) => {
