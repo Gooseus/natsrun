@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3](https://github.com/Gooseus/natsrun/compare/natsrun-v0.4.2...natsrun-v0.4.3) (2025-05-17)
+
+
+### Bug Fixes
+
+* update last-release-sha and try again ([#7](https://github.com/Gooseus/natsrun/issues/7)) ([c83bea4](https://github.com/Gooseus/natsrun/commit/c83bea46706960ad984beaf2e16f44697cec5c69))
+
 ## [0.4.0] - 2024-04-14
 
 ### Added
@@ -30,4 +37,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core routing functionality
 - Pattern matching support
 - Handler sorting strategies
-- TypeScript support 
+- TypeScript support
