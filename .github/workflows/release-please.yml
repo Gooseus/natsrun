@@ -36,7 +36,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
       
       - name: Build
-        run: npm run build
+        run: |
+          npm run build
+          npm run build:browser
+          npm run build:docs
         if: ${{ steps.release.outputs.release_created }}
       
       - name: Publish to npm
