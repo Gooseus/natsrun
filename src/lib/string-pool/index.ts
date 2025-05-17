@@ -2,8 +2,11 @@
  * A pool of strings that ensures each unique string is stored only once
  */
 export class StringPool {
+  /** Map of strings to their unique IDs */
   private pool: Map<string, number>;
+  /** Array of strings indexed by their IDs */
   private strings: string[];
+  /** Next available ID for a new string */
   private nextId: number;
 
   constructor() {

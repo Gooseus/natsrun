@@ -19,6 +19,10 @@ export interface ITrieNode<T> {
   p?: T | T[];
 }
 
+/**
+ * Default threshold for converting an array branch to a map branch
+ * When a branch grows beyond this size, it will be converted from an array to a map for better performance
+ */
 export const DEFAULT_ARRAY_TO_MAP_THRESHOLD = 32;
 
 /**
